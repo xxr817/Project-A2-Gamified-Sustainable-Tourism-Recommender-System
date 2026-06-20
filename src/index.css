@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { background: #FAFAF7; color: #1A2B1A; }
+  body { font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  ::selection { background: #97BC62; color: #1A2B1A; }
+}
+
+@layer utilities {
+  .font-display { font-family: "Plus Jakarta Sans", system-ui, sans-serif; letter-spacing: -0.01em; }
+  .gradient-forest { background: linear-gradient(135deg, #234B25 0%, #3A7A43 60%, #7DA34A 100%); }
+  .gradient-gold { background: linear-gradient(135deg, #F4B860 0%, #EF9F35 100%); }
+  .gradient-leaf {
+    background:
+      radial-gradient(1200px 500px at 100% -10%, rgba(151,188,98,.25), transparent 50%),
+      radial-gradient(900px 500px at -10% 110%, rgba(244,184,96,.18), transparent 60%);
+  }
+  .glass { background: rgba(255,255,255,.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .map-tile {
+    background:
+      radial-gradient(circle at 20% 30%, #DCE9DD 0 60px, transparent 61px),
+      radial-gradient(circle at 70% 60%, #E9F2D3 0 70px, transparent 71px),
+      radial-gradient(circle at 40% 80%, #B7D2BA 0 40px, transparent 41px),
+      linear-gradient(180deg, #F2F7F2, #FAFAF7);
+  }
+}
+
+.dot { width: .5rem; height: .5rem; border-radius: 9999px; display: inline-block; }
+.crowd-bar { display: inline-flex; gap: 2px; align-items: flex-end; }
+.crowd-bar i { width: 4px; background: #B7D2BA; display: inline-block; border-radius: 1px; }
+.crowd-bar i.on { background: #3A7A43; }
+
+/* Toast / Modal animations handled via Tailwind keyframes in config */
+.bar { transition: width 1s cubic-bezier(.2, .7, .1, 1); }

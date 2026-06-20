@@ -1,0 +1,30 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.env
+.env.*
+!.env.example
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+.vercel
+.env*
+
+# local backups & build/session temp artifacts (safe to delete)
+_backup_*/
+backup_*.zip
+vite.config.js.timestamp-*.mjs
+
+# python backend (virtual-env + caches — never commit these)
+.venv/
+venv/
+__pycache__/
+*.pyc
+ecotrail.db
+
+# keep env TEMPLATES even though .env* is ignored above (negation must be last)
+!.env.example
+!backend/.env.example

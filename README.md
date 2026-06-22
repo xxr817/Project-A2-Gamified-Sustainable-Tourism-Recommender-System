@@ -1,97 +1,88 @@
-# EcoTrail — React Prototype
+# EcoTrail — Gamified Sustainable Tourism Recommender
 
-High-fidelity, click-through frontend for **Project A2: Gamification in Sustainable Tourism Recommender System** — *Lab Course Projects in Recommender Systems, TUM CM, Summer Semester 2026*.
+**Project A2 · Lab Course Projects in Recommender Systems · TUM CM · Summer Semester 2026**
+Team: Xuerong Xu, Yujie Liu · Supervisor: Ashmi Banerjee
 
-This is the **Milestone 3** deliverable: *UI + gamification integration*. It is a real React app (the tech stack from the Milestone 1 deck) — not a mock — so you can iterate on it, deploy it to Vercel, and plug a FastAPI recommender into it during Milestone 2/3.
+🔗 **Live demo:** https://eco-trail-react-1.vercel.app
 
----
-
-## What's inside
-
-```
-EcoTrail-React/
-├── package.json              ← project manifest + dependency list
-├── vite.config.js            ← Vite build config
-├── tailwind.config.js        ← custom colours (forest / moss / gold)
-├── postcss.config.js
-├── index.html                ← single root HTML (loads /src/main.jsx)
-└── src/
-    ├── main.jsx              ← React entry point + Router
-    ├── App.jsx               ← top-level routes + shared "points" state
-    ├── index.css             ← Tailwind directives + custom utilities
-    ├── data.js               ← all mock data (CO₂ figures, trips, badges…)
-    ├── ui.jsx                ← shared primitives: Logo, Toast, Modal, Switch, CrowdBar, Tabs
-    ├── Layout.jsx            ← AppShell — sidebar + topbar + <Outlet/>
-    └── pages/
-        ├── Landing.jsx       ← public landing page
-        ├── Login.jsx         ← login screen
-        ├── Signup.jsx        ← signup screen
-        ├── Onboarding.jsx    ← preference picker after signup
-        ├── Dashboard.jsx     ← home page with level progress, KPIs, recs
-        ├── Plan.jsx          ← trip planner with Transport / Stay / Eat / Do tabs
-        ├── Challenges.jsx    ← active challenge + 6 joinable challenges
-        ├── Leaderboard.jsx   ← Munich weekly podium + table
-        ├── Badges.jsx        ← 6 unlocked + 6 locked badges
-        └── Profile.jsx       ← preferences, eco-weight slider, GDPR controls
-```
+> A gamified recommender that nudges travellers toward lower-carbon choices — points, levels, badges and weekly challenges layered on top of AI-assisted, sustainability-first trip planning.
 
 ---
 
-## How to run (foolproof)
+## What it does
 
-You need **Node.js v18 or newer**. Check by running:
+- **AI trip planner** — enter a route and dates; the app returns sustainability-ranked **transport, stays, eats and activities** with plausible CO₂ estimates, generated live by an LLM.
+- **Gamification loop** — earn points for green choices → level up → unlock **badges**; join **weekly challenges** with progress tracking and rewards. All persisted per user.
+- **Accounts** — email/password + Google sign-in (Supabase Auth), with onboarding preferences, a profile, and a weekly **leaderboard**.
 
-```bash
-node --version
+---
+
+## Architecture
+
+```
+Browser
+  │
+  ├──► Frontend (React + Vite)        ──►  Vercel        https://eco-trail-react-1.vercel.app
+  │        │
+  │        ├─ data, auth, gamification ──► Supabase (Postgres + Auth + RLS)
+  │        │
+  │        └─ AI trip planning  /api  ──► Backend (FastAPI)  ──► Render  ──► OpenAI
 ```
 
-If you don't have it, install from [nodejs.org](https://nodejs.org) (the "LTS" version).
+- **Frontend** — React 18 + Vite + Tailwind, deployed on **Vercel**.
+- **Backend** — **FastAPI** (a thin service that holds the OpenAI key and calls the model), deployed on **Render**. Talks to the frontend via `VITE_API_BASE_URL`; CORS-restricted to the deployed frontend.
+- **Database/Auth** — **Supabase** (PostgreSQL, Row-Level Security, Supabase Auth).
+- **AI** — OpenAI (`gpt-4.1-mini`) with structured JSON output. Without an API key the backend falls back to a built-in demo plan, so the app still runs.
 
-Then in this folder:
+---
 
+## Where the data comes from (honest note)
+
+- **Real, cited constant:** CO₂-per-passenger-km figures are from the **European Environment Agency (EEA), 2023** (e.g. train 35 g, car 170 g, short flight 255 g).
+- **AI-generated at request time:** the per-route trip recommendations (transport / stays / eats / activities) are produced by the LLM, structured by a fixed JSON schema — not retrieved from live travel APIs.
+- **Hand-curated reference/seed data:** destinations, badges, challenges and demo content (Supabase seed + `src/data.js`).
+- **Planned future integrations (not yet wired):** live Booking.com / OpenStreetMap / Climatiq / GreenKey feeds, and the Strava/review-based badges (currently hidden in the UI).
+
+---
+
+## Run locally
+
+Requires **Node 18+** and **Python 3**.
+
+**Backend** (terminal 1):
 ```bash
-# 1.  Install dependencies (only first time — downloads ~200 MB into node_modules/)
+cd <repo>
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+export OPENAI_API_KEY=sk-...        # optional; without it you get demo plans
+uvicorn backend.main:app --reload --port 8000
+```
+
+**Frontend** (terminal 2):
+```bash
+cd <repo>
 npm install
-
-# 2.  Start the dev server — opens http://localhost:5173 in your browser
-npm run dev
-
-# 3.  When you want to deploy: build a static bundle into dist/
-npm run build
+npm run dev                          # http://localhost:5173
 ```
 
-`npm run dev` gives you hot-reload: edit any `.jsx` file and the browser updates instantly.
+The frontend proxies `/api` to `localhost:8000` in dev. For production it reads `VITE_API_BASE_URL`.
 
 ---
 
-## How the app is wired
+## Deployment
 
-- **Routing** is via `react-router-dom@6`. Public routes (`/`, `/login`, `/signup`, `/onboarding`) live outside the app shell; logged-in routes are nested under `/app` and render through `AppShell`'s `<Outlet/>`.
-- **Shared state** is minimal: just the user's points counter, exposed via a tiny `useUser()` context defined in `App.jsx`. Components like the Transport tab call `addPoints(25)` and the sidebar / topbar reflect the new total instantly.
-- **Styling** is Tailwind CSS. The custom colour palette lives in `tailwind.config.js`. Common visual recipes (`gradient-forest`, `map-tile`, `crowd-bar`) are utility classes in `index.css`.
-- **Icons** come from `lucide-react` — tree-shaken so only icons you import end up in the bundle.
+- **Frontend → Vercel** (Vite preset). Set env `VITE_API_BASE_URL` to the backend URL.
+- **Backend → Render** (`render.yaml` included). Set env `OPENAI_API_KEY` and `ALLOWED_ORIGINS` (the frontend URL).
+- **Database → Supabase.** Apply `supabase_schema.sql` + `supabase_seed.sql`, then `supabase_migration_milestone3.sql`.
 
-## Where the data is fake (and how to wire the real thing)
-
-Everything in `src/data.js` is hand-curated from the Milestone 1 deck and from public sources cited there (EEA 2023 for CO₂ figures, Booking.com 2023, Lenzen 2018, Koivisto & Hamari 2019). When you land Milestone 2 (data pipeline + first recommender), replace each constant with a `fetch(...)` to the FastAPI endpoint. The component code stays the same.
-
-Hot spots to swap first:
-- `RECOMMENDED_TRIPS` → `GET /api/recommendations?user_id=…`
-- `TRANSPORT_OPTIONS` → `GET /api/transport?from=…&to=…&date=…` (Climatiq for CO₂)
-- `STAY_OPTIONS` → `GET /api/stays?city=…` (Booking.com Open + GreenKey registry)
-- `LEADERBOARD` → `GET /api/leaderboard?city=Munich&period=week`
+See `DEPLOY_GUIDE.md` for step-by-step instructions.
 
 ---
 
-## Deploy to Vercel
+## Tech stack
 
-```bash
-npm run build           # produces /dist
-npx vercel --prod        # follow the prompts; pick "Other" framework if asked
-```
-
-Vercel will autodetect Vite. Free tier is fine for the demo.
+React 18 · Vite · Tailwind CSS · React Router · FastAPI · OpenAI · Supabase (Postgres/Auth) · Vercel · Render
 
 ---
 
-© 2026 EcoTrail — Xuerong Xu, Yujie Liu — Supervisor: Ashmi Banerjee.
+*GenAI disclosure: this project uses OpenAI both as a product feature (the trip planner) and as a development aid. Details are documented in the final report.*

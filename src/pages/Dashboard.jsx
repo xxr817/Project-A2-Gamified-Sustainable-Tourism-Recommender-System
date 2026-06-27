@@ -225,7 +225,7 @@ export default function Dashboard() {
 
 function LevelMountain({ level, levelName, nextLevel, points, nextLevelAt, progressPct, pointsToNext }) {
   const routeStart = { x: 54, y: 154 }
-  const routeEnd = { x: 302, y: 52 }
+  const routeEnd = { x: 176, y: 58 }
   const routeProgress = Math.max(0, Math.min(100, progressPct))
   const climberX = routeStart.x + ((routeEnd.x - routeStart.x) * routeProgress) / 100
   const climberY = routeStart.y + ((routeEnd.y - routeStart.y) * routeProgress) / 100
@@ -260,9 +260,11 @@ function LevelMountain({ level, levelName, nextLevel, points, nextLevelAt, progr
             y1={routeStart.y}
             x2={routeEnd.x}
             y2={routeEnd.y}
-            stroke="rgba(255,255,255,.85)"
-            strokeWidth="4"
+            stroke="rgba(255,255,255,.9)"
+            strokeWidth="3"
             strokeLinecap="round"
+            strokeDasharray="1 9"
+            vectorEffect="non-scaling-stroke"
           />
           <line
             x1={routeStart.x}
@@ -270,8 +272,9 @@ function LevelMountain({ level, levelName, nextLevel, points, nextLevelAt, progr
             x2={climberX}
             y2={climberY}
             stroke="#F4B860"
-            strokeWidth="4"
+            strokeWidth="5"
             strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
           />
         </svg>
 
@@ -283,7 +286,7 @@ function LevelMountain({ level, levelName, nextLevel, points, nextLevelAt, progr
         </div>
 
         <div className="absolute left-4 bottom-3 text-[11px] font-semibold text-forest-700">Lv {level}</div>
-        <div className="absolute right-4 top-3 text-[11px] font-semibold text-forest-700">Lv {nextLevel}</div>
+        <div className="absolute left-1/2 -translate-x-1/2 top-2 text-[11px] font-semibold text-forest-700">Lv {nextLevel}</div>
       </div>
 
       <div className="mt-4">

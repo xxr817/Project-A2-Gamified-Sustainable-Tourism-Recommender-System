@@ -18,7 +18,10 @@ export default function Signup() {
     setError(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/app` },
+      options: {
+        redirectTo: `${window.location.origin}/app`,
+        queryParams: { prompt: 'select_account' },
+      },
     })
     if (error) {
       setError(error.message)
@@ -36,7 +39,7 @@ export default function Signup() {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/onboarding`,
+        emailRedirectTo: `${window.location.origin}/app`,
       },
     })
 
@@ -51,7 +54,7 @@ export default function Signup() {
     }
 
     if (data.session) {
-      navigate('/onboarding')
+      navigate('/app')
     } else {
       setCheckEmail(true)
       setLoading(false)

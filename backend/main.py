@@ -256,7 +256,7 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
     schema = {
         "type": "object",
         "additionalProperties": False,
-        "required": ["summary", "transport", "activities", "stays", "eats"],
+        "required": ["summary", "transport", "activities", "stays"],
         "properties": {
             "summary": {"type": "string"},
             "transport": {
@@ -354,24 +354,6 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
                     },
                 },
             },
-            "eats": {
-                "type": "array",
-                "minItems": 3,
-                "maxItems": 4,
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["id", "emoji", "name", "district", "tags", "price"],
-                    "properties": {
-                        "id": {"type": "string"},
-                        "emoji": {"type": "string"},
-                        "name": {"type": "string"},
-                        "district": {"type": "string"},
-                        "tags": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string"}},
-                        "price": {"type": "string"},
-                    },
-                },
-            },
         },
     }
 
@@ -384,8 +366,8 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
         "Activities should be in or near the destination city, with larger point gaps up to 10. "
         "Stays must be eco-certified hotels actually in the destination city: each with a cert label "
         "(GreenKey, EU Ecolabel or Biosphere), a real district, a nightly price, and a green-score 80-99. "
-        "Eats must be sustainable restaurants in the destination city (plant-based, local-sourced or MSC-certified), "
-        "each with 1-3 short tags and a price band such as €, €€ or €€€. "
+        "Do not include any restaurants or dining: the plan and the summary must cover only transport, "
+        "activities and stays, and must not mention dining or restaurants. "
         f"Route: {payload.from_city} to {payload.to_city}. "
         f"Dates: {payload.depart_date} to {payload.return_date}."
     )

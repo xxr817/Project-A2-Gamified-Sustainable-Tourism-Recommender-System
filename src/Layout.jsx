@@ -129,7 +129,7 @@ export default function AppShell({ points: earnedPoints = 0 }) {
             <div className="relative w-full max-w-md">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-mute" />
               <input
-                placeholder="Search destinations, hotels, restaurants…"
+                placeholder="Search destinations, hotels, activities…"
                 className="w-full pl-9 pr-4 py-2 rounded-full bg-cream border border-forest-100 focus:bg-white outline-none text-sm"
               />
             </div>

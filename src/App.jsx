@@ -14,7 +14,6 @@ import { syncAchievements } from './achievements.js'
 import Landing from './pages/Landing.jsx'
 import Login from './pages/Login.jsx'
 import Signup from './pages/Signup.jsx'
-import Onboarding from './pages/Onboarding.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Plan from './pages/Plan.jsx'
 import Challenges from './pages/Challenges.jsx'
@@ -134,7 +133,6 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/onboarding" element={<Onboarding />} />
 
           {/* App shell + nested pages — gated behind RequireAuth */}
           <Route path="/app" element={<RequireAuth><AppShell points={points} /></RequireAuth>}>

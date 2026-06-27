@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Tabs, CrowdBar, useToast } from '../ui.jsx'
 import { useUser } from '../App.jsx'
-import { TRANSPORT_OPTIONS, STAY_OPTIONS, EAT_OPTIONS, DO_OPTIONS } from '../data.js'
+import { TRANSPORT_OPTIONS, STAY_OPTIONS, DO_OPTIONS } from '../data.js'
 import { useAuth } from '../AuthContext.jsx'
 import { supabase } from '../supabase'
 
@@ -14,7 +14,6 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const TABS = [
   { id: 'transport', label: '🚆 Transport' },
   { id: 'stay',      label: '🏨 Stay' },
-  { id: 'eat',       label: '🥗 Eat' },
   { id: 'do',        label: '🎯 Do' },
 ]
 
@@ -32,7 +31,6 @@ export default function Plan() {
   const transportOptions = generatedPlan?.transport?.length ? generatedPlan.transport : TRANSPORT_OPTIONS
   const activityOptions = generatedPlan?.activities?.length ? generatedPlan.activities : DO_OPTIONS
   const stayOptions = generatedPlan?.stays?.length ? generatedPlan.stays : STAY_OPTIONS
-  const eatOptions = generatedPlan?.eats?.length ? generatedPlan.eats : EAT_OPTIONS
 
   const handleSearch = async () => {
     setSearchLoading(true)
@@ -101,7 +99,6 @@ export default function Plan() {
           />
         )}
         {tab === 'stay'      && <StayPanel stays={stayOptions} />}
-        {tab === 'eat'       && <EatPanel eats={eatOptions} />}
         {tab === 'do'        && <DoPanel activities={activityOptions} />}
       </div>
     </div>
@@ -143,12 +140,24 @@ function normalizeGeneratedPlan(data) {
       }))
     : []
 
+  const stays = Array.isArray(data?.stays)
+    ? data.stays.map((item, index) => ({
+        id: item.id || `search-stay-${index}`,
+        name: item.name || 'Suggested eco stay',
+        cert: item.cert || '🌿 Eco-certified',
+        district: item.district || '',
+        price: item.price || '',
+        score: Number(item.score ?? 85),
+      }))
+    : []
+
   return {
     source: data?.source || 'search',
     notice: data?.notice || '',
     summary: data?.summary || '',
     transport,
     activities,
+    stays,
   }
 }
 
@@ -256,13 +265,6 @@ function SearchPanel({
           )}
         </div>
       )}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Chip on>Greenest first ✓</Chip>
-        <Chip>Off‑peak only</Chip>
-        <Chip>Direct routes</Chip>
-        <Chip>Budget &lt; €200</Chip>
-        <Chip>Plant‑based dining</Chip>
-      </div>
     </div>
   )
 }
@@ -474,16 +476,6 @@ function Field({ label, defaultValue, value, onChange, citySearch = false, class
         </div>
       )}
     </div>
-  )
-}
-
-function Chip({ children, on }) {
-  return (
-    <span className={`text-[11px] rounded-full px-2 py-1 border ${
-      on ? 'bg-forest-50 border-forest-100 text-inkSoft' : 'bg-cream border-forest-100 text-inkSoft'
-    }`}>
-      {children}
-    </span>
   )
 }
 
@@ -718,7 +710,7 @@ function TransportCard({ opt, searchSource, selected, disabled, onSelect }) {
         </div>
       )}
       {opt.warning && (
-        <div className="mt-4 text-[12px] rounded-xl p-3 border" style={{ background: '#FEF2F2', borderColor: '#FECACA', color: '#991B1B' }}>
+        <div className="mt-4 text-[12px] rounded-xl p-3 border bg-gold-50 border-gold-100 text-gold-700">
           <strong>Heads‑up:</strong> {opt.warning}
         </div>
       )}
@@ -816,36 +808,8 @@ function StayPanel({ stays = STAY_OPTIONS }) {
 }
 
 /* ─── EAT ───────────────────────────────────────────────────────────── */
-function EatPanel({ eats = EAT_OPTIONS }) {
-  return (
-    <div className="p-6 grid grid-cols-3 gap-5">
-      {eats.map((e) => (
-        <div key={e.id} className="rounded-2xl border border-forest-100 p-5 hover:shadow-cardHover transition">
-          <div className="flex items-center justify-between">
-            <div className="text-2xl">{e.emoji}</div>
-            <span className="text-[11px] font-semibold text-gold-500 bg-gold-50 border border-gold-100 rounded-full px-2 py-0.5">
-              +1 / meal
-            </span>
-          </div>
-          <div className="font-display font-bold mt-2">{e.name}</div>
-          <div className="text-xs text-inkSoft">{e.district}</div>
-          <div className="mt-3 flex items-center gap-2 text-[11px]">
-            {(e.tags || []).map((t, i) => (
-              <span key={t} className={`rounded-full px-2 py-0.5 border ${
-                i === 0 ? 'bg-forest-50 text-forest-700 border-forest-100' : 'bg-moss-50 text-moss-700 border-moss-100'
-              }`}>
-                {t}
-              </span>
-            ))}
-          </div>
-          <div className="mt-4 flex items-center justify-between text-sm">
-            <span className="font-bold">{e.price}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
+// Restaurant (Eat) recommendations were removed per final design.
+// The backend may still return an `eats` array, but the UI no longer renders it.
 
 /* ─── DO ────────────────────────────────────────────────────────────── */
 function DoPanel({ activities = DO_OPTIONS }) {

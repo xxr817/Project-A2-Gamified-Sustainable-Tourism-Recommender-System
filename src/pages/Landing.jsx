@@ -58,7 +58,7 @@ export default function Landing() {
           <div className="max-w-7xl mx-auto px-8 pb-20 grid grid-cols-3 gap-6">
               <Pillar Icon={List} bg="bg-forest-50" color="text-forest-700"
                       title="Recommends greener options"
-                      text="Transport, accommodation, dining and activities ranked by green‑score, not just by stars."/>
+                      text="Transport, accommodation and activities ranked by green‑score, not just by stars."/>
               <Pillar Icon={Sparkles} bg="bg-gold-50" color="text-gold-500"
                       title="Rewards real action"
                       text="Points, badges and challenges close the intention–action gap — proven by behavioural science."/>

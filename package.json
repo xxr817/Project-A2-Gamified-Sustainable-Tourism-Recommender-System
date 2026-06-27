@@ -6,7 +6,7 @@
   "description": "EcoTrail — Gamified Sustainable Tourism Recommender (TUM Lab Course A2, SS2026)",
   "scripts": {
     "dev": "vite",
-    "dev:api": "uvicorn backend.main:app --reload --port 8000",
+    "dev:api": ".venv/bin/uvicorn backend.main:app --reload --port 8000 --env-file backend/.env",
     "build": "vite build",
     "preview": "vite preview"
   },

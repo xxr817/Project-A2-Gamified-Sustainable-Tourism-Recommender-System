@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Switch } from '../ui.jsx'
 import { useAuth } from '../AuthContext.jsx'
 import { supabase } from '../supabase'
 import { TRANSPORT_OPTIONS } from '../data.js'
@@ -36,41 +35,6 @@ export default function Profile() {
   const [rankInfo, setRankInfo] = useState({ all: null, week: null, total: 0 })
   const [rankLoading, setRankLoading] = useState(true)
 
-  const [prefs, setPrefs] = useState({
-    lowCo2: true, offPeak: true, plant: true, budget: false, family: false, accessibility: false,
-  })
-  const [privacy, setPrivacy] = useState({
-    public: true, friends: true, newsletter: false, improve: true,
-  })
-  const [weight, setWeight] = useState(80)
-  // Persist the interest toggles to profiles.preferences (jsonb). Defensive:
-  // if the column is missing or the write fails, we log and keep the UI working.
-  const persistPrefs = async (nextPrefs) => {
-    if (!authUser) return
-    try {
-      const { error: prefError } = await supabase
-        .from('profiles')
-        .update({
-          preferences: { ...(profile?.preferences || {}), interests: nextPrefs, updatedAt: new Date().toISOString() },
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', authUser.id)
-      if (prefError) console.warn('Could not save preferences:', prefError.message)
-    } catch (err) {
-      console.warn('Preference save failed:', err)
-    }
-  }
-
-  const toggle = (group, key) => {
-    if (group === 'prefs') {
-      const next = { ...prefs, [key]: !prefs[key] }
-      setPrefs(next)
-      persistPrefs(next)
-    } else {
-      setPrivacy((s) => ({ ...s, [key]: !s[key] }))
-    }
-  }
-
   useEffect(() => {
     if (profile) {
       setForm({
@@ -79,14 +43,6 @@ export default function Profile() {
       })
     }
   }, [profile, authUser])
-
-  // Load saved interest preferences (set during onboarding) into the toggles.
-  useEffect(() => {
-    const saved = profile?.preferences?.interests
-    if (saved && typeof saved === 'object') {
-      setPrefs((cur) => ({ ...cur, ...saved }))
-    }
-  }, [profile])
 
   useEffect(() => {
     if (!authUser) {
@@ -109,10 +65,10 @@ export default function Profile() {
         .from('user_activity')
         .select('id, activity_type, emoji, title, detail, points_earned, created_at, background_tone')
         .eq('user_id', authUser.id)
-        .in('activity_type', ['transport', 'stay', 'activity'])
+        .in('activity_type', ['transport', 'stay', 'activity', 'food'])
         .gte('created_at', profile?.join_date || '1970-01-01')
         .order('created_at', { ascending: false })
-        .limit(12),
+        .limit(24),
     ]).then(([tripRes, activityRes]) => {
       setTrips(tripRes.data || [])
       setActivityHistory(activityRes.data || [])
@@ -166,6 +122,10 @@ export default function Profile() {
   const initial = name.trim().charAt(0).toUpperCase()
   const avatarUrl = authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture
   const email = authUser?.email || profile?.email || ''
+  const tripGroups = buildTripGroups(trips, activityHistory)
+  const unattachedActivities = activityHistory.filter((item) => !tripGroups.some((group) =>
+    group.transportActivity?.id === item.id || group.attachments.some((attachment) => attachment.id === item.id)
+  ))
   const joinDate = profile?.join_date
     ? new Date(profile.join_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
     : '—'
@@ -348,20 +308,6 @@ export default function Profile() {
         </div>
 
         <div className="col-span-12 rounded-3xl bg-white border border-forest-100 p-6 shadow-card">
-          <h3 className="font-display font-bold text-lg">Preferences</h3>
-          <p className="text-sm text-inkSoft mt-0.5">These shape your recommendations.</p>
-          <div className="mt-5 grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-            <Row label="Prefer low‑CO₂ options"  checked={prefs.lowCo2}        onChange={() => toggle('prefs', 'lowCo2')} />
-            <Row label="Off‑peak / less‑crowded" checked={prefs.offPeak}       onChange={() => toggle('prefs', 'offPeak')} />
-            <Row label="Plant‑based dining"     checked={prefs.plant}         onChange={() => toggle('prefs', 'plant')} />
-            <Row label="Budget‑friendly first"   checked={prefs.budget}        onChange={() => toggle('prefs', 'budget')} />
-            <Row label="Family with kids"        checked={prefs.family}        onChange={() => toggle('prefs', 'family')} />
-            <Row label="Accessibility mode"      checked={prefs.accessibility} onChange={() => toggle('prefs', 'accessibility')} />
-          </div>
-
-        </div>
-
-        <div className="col-span-12 rounded-3xl bg-white border border-forest-100 p-6 shadow-card">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="font-display font-bold text-lg">Account reset</h3>
@@ -384,10 +330,10 @@ export default function Profile() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="font-display font-bold text-lg">History</h3>
-              <p className="text-sm text-inkSoft mt-0.5">Past trips and everything you've selected while planning.</p>
+              <p className="text-sm text-inkSoft mt-0.5">Trip plans are the main record. Stays, restaurants, and activities are shown underneath each trip.</p>
             </div>
             <span className="text-[11px] font-semibold text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">
-              {trips.length + activityHistory.length} records
+              {trips.length} trip{trips.length === 1 ? '' : 's'}
             </span>
           </div>
 
@@ -400,28 +346,22 @@ export default function Profile() {
               No history yet. Select transport, stay, or activities from Plan a trip to start recording.
             </div>
           ) : (
-            <div className="mt-5 grid grid-cols-12 gap-5">
-              <div className="col-span-12 lg:col-span-5">
-                <div className="text-xs uppercase tracking-wider text-mute font-semibold">Trips</div>
-                <div className="mt-3 space-y-3">
-                  {trips.length === 0 ? (
-                    <EmptyHistoryLine text="No saved trips yet" />
-                  ) : trips.map((trip) => (
-                    <TripHistoryItem key={trip.id} trip={trip} activityHistory={activityHistory} />
-                  ))}
+            <div className="mt-5 space-y-4">
+              {tripGroups.length === 0 ? (
+                <EmptyHistoryLine text="No saved trips yet" />
+              ) : tripGroups.map((group) => (
+                <TripHistoryItem key={group.trip.id} group={group} />
+              ))}
+              {unattachedActivities.length > 0 && (
+                <div className="rounded-2xl bg-cream border border-forest-100 p-4">
+                  <div className="text-xs uppercase tracking-wider text-mute font-semibold">Other selections</div>
+                  <div className="mt-3 space-y-2">
+                    {unattachedActivities.map((item) => (
+                      <ActivityHistoryItem key={item.id} item={item} compact />
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <div className="col-span-12 lg:col-span-7">
-                <div className="text-xs uppercase tracking-wider text-mute font-semibold">Selected choices</div>
-                <div className="mt-3 space-y-3">
-                  {activityHistory.length === 0 ? (
-                    <EmptyHistoryLine text="No selected activities yet" />
-                  ) : activityHistory.map((item) => (
-                    <ActivityHistoryItem key={item.id} item={item} />
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -450,59 +390,135 @@ function RankStat({ label, value, loading }) {
   )
 }
 
-function TripHistoryItem({ trip, activityHistory = [] }) {
-  const transport = TRANSPORT_OPTIONS.find((item) => item.id === trip.selected_transport_id)
-  const recentTransport = activityHistory.find((item) => {
-    if (item.activity_type !== 'transport') return false
-    if (!item.created_at || !trip.created_at) return true
+function buildTripGroups(trips, activityHistory) {
+  const sortedTrips = [...trips].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  const groupedActivityIds = new Set()
 
-    const activityTime = new Date(item.created_at).getTime()
+  return sortedTrips.map((trip, index) => {
     const tripTime = new Date(trip.created_at).getTime()
-    return Math.abs(activityTime - tripTime) < 5 * 60 * 1000
-  }) || activityHistory.find((item) => item.activity_type === 'transport')
+    const newerTripTime = index === 0 ? Infinity : new Date(sortedTrips[index - 1].created_at).getTime()
+
+    const related = activityHistory.filter((item) => {
+      if (!item.created_at) return false
+      const activityTime = new Date(item.created_at).getTime()
+      return activityTime >= tripTime - 5 * 60 * 1000 && activityTime < newerTripTime
+    })
+
+    const transportActivity = related.find((item) => item.activity_type === 'transport')
+      || activityHistory.find((item) => {
+        if (item.activity_type !== 'transport') return false
+        const activityTime = new Date(item.created_at).getTime()
+        return Math.abs(activityTime - tripTime) < 5 * 60 * 1000
+      })
+
+    const attachments = related
+      .filter((item) => item.activity_type !== 'transport')
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+
+    if (transportActivity) groupedActivityIds.add(transportActivity.id)
+    attachments.forEach((item) => groupedActivityIds.add(item.id))
+
+    return { trip, transportActivity, attachments }
+  })
+}
+
+function TripHistoryItem({ group }) {
+  const { trip, transportActivity, attachments } = group
+  const transport = TRANSPORT_OPTIONS.find((item) => item.id === trip.selected_transport_id)
+  const routeDetail = transportActivity?.detail || transport?.title || 'Route not saved'
+  const totalPoints = (trip.points_earned || 0) + attachments.reduce((sum, item) => sum + (item.points_earned || 0), 0)
 
   return (
-    <div className="rounded-2xl bg-cream border border-forest-100 p-4 text-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-display font-bold">Trip #{trip.id}</div>
-          <div className="text-xs text-inkSoft mt-1">
-            {formatTripRange(trip.start_date, trip.end_date)}
+    <div className="rounded-3xl bg-white border border-forest-100 shadow-card overflow-hidden">
+      <div className="gradient-forest text-white p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 grid place-items-center text-2xl">
+              {transportActivity?.emoji || transport?.emoji || '🧭'}
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-widest text-moss-200">Trip planned</div>
+              <div className="font-display text-xl font-extrabold mt-0.5">{routeDetail}</div>
+              <div className="text-xs text-moss-100 mt-1">
+                {formatTripRange(trip.start_date, trip.end_date)} · planned {formatHistoryDate(trip.created_at)}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <span className="text-[11px] text-forest-800 bg-white rounded-full px-2 py-0.5 font-semibold">
+              {trip.status}
+            </span>
+            {totalPoints > 0 && (
+              <span className="text-xs font-bold text-gold-200">+{totalPoints} pts</span>
+            )}
           </div>
         </div>
-        <span className="text-[11px] text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">
-          {trip.status}
-        </span>
       </div>
-      <div className="mt-3 space-y-1 text-xs text-inkSoft">
-        <div>{transport?.emoji || recentTransport?.emoji || '🚆'} {recentTransport?.detail || transport?.title || 'Route not saved'}</div>
-        <div>Created {formatHistoryDate(trip.created_at)}</div>
-        {trip.points_earned > 0 && <div className="font-semibold text-gold-500">+{trip.points_earned} pts</div>}
+      <div className="p-4">
+        {attachments.length === 0 ? (
+          <div className="rounded-2xl bg-cream border border-forest-100 p-3 text-xs text-mute">
+            No stay, restaurant, or activity selections attached yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-xs uppercase tracking-wider text-mute font-semibold">Attached choices</div>
+            {attachments.map((item) => (
+              <ActivityHistoryItem key={item.id} item={item} compact />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function ActivityHistoryItem({ item }) {
+function ActivityHistoryItem({ item, compact = false }) {
+  const label = activityTypeLabel(item.activity_type)
+
+  if (compact) {
+    return (
+      <div className="rounded-2xl bg-cream border border-forest-100 px-3 py-2 text-sm flex items-center gap-3">
+        <div className="w-8 h-8 rounded-xl bg-white border border-forest-100 grid place-items-center text-base">
+          {item.emoji || '✨'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">
+              {label}
+            </span>
+            <span className="font-semibold truncate">{item.detail || item.title}</span>
+          </div>
+          <div className="text-[11px] text-mute mt-0.5">{formatHistoryDate(item.created_at)}</div>
+        </div>
+        {item.points_earned > 0 && (
+          <span className="text-xs font-semibold text-gold-500">+{item.points_earned} pts</span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="rounded-2xl bg-cream border border-forest-100 p-4 text-sm flex items-start gap-3">
-      <div className="w-9 h-9 rounded-xl bg-white border border-forest-100 grid place-items-center text-lg">
-        {item.emoji || '✨'}
-      </div>
-      <div className="flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="font-display font-bold">{item.title}</div>
-            <div className="text-xs text-inkSoft mt-1">{item.detail || item.activity_type}</div>
-          </div>
-          {item.points_earned > 0 && (
-            <span className="text-xs font-semibold text-gold-500">+{item.points_earned} pts</span>
-          )}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-display font-bold">{item.title}</div>
+          <div className="text-xs text-inkSoft mt-1">{item.detail || item.activity_type}</div>
         </div>
-        <div className="text-[11px] text-mute mt-2">{formatHistoryDate(item.created_at)}</div>
+        {item.points_earned > 0 && (
+          <span className="text-xs font-semibold text-gold-500">+{item.points_earned} pts</span>
+        )}
       </div>
+      <div className="text-[11px] text-mute mt-2">{formatHistoryDate(item.created_at)}</div>
     </div>
   )
+}
+
+function activityTypeLabel(type) {
+  if (type === 'stay') return 'Stay'
+  if (type === 'activity') return 'Activity'
+  if (type === 'food') return 'Restaurant'
+  if (type === 'transport') return 'Transport'
+  return 'Choice'
 }
 
 function formatTripRange(startDate, endDate) {
@@ -518,15 +534,6 @@ function formatHistoryDate(value) {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-function Row({ label, checked, onChange }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span>{label}</span>
-      <Switch checked={checked} onChange={onChange} />
-    </div>
-  )
 }
 
 function ConnectRow({ icon, name, connected }) {

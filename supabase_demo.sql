@@ -52,10 +52,10 @@ on conflict (user_id, badge_id) do nothing;
 with me as (select id from public.profiles limit 1)
 insert into public.user_challenges (user_id, challenge_id, is_active, joined_at, progress)
 select me.id,
-       'green-commuter-week',
+       'c2',
        true,
        now() - interval '3 days',
-       '{"days": [true, true, true, "today", false, false, false]}'::jsonb
+       '{"count": 0, "target": 1}'::jsonb
 from me
 on conflict (user_id, challenge_id) do nothing;
 

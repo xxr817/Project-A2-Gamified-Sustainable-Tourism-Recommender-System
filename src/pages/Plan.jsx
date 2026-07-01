@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Leaf, Route } from 'lucide-react'
 import { Tabs, CrowdBar, useToast } from '../ui.jsx'
 import { useUser } from '../App.jsx'
-import { TRANSPORT_OPTIONS, STAY_OPTIONS, DO_OPTIONS } from '../data.js'
+import { TRANSPORT_OPTIONS, STAY_OPTIONS, DO_OPTIONS, EAT_OPTIONS } from '../data.js'
 import { useAuth } from '../AuthContext.jsx'
 import { supabase } from '../supabase'
 
@@ -14,7 +14,16 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 const TABS = [
   { id: 'transport', label: '🚆 Transport' },
   { id: 'stay',      label: '🏨 Stay' },
-  { id: 'do',        label: '🎯 Do' },
+  { id: 'eat',       label: '🥗 Eat' },
+  { id: 'do',        label: '🎯 Activities' },
+]
+
+const SEARCH_PREFERENCES = [
+  { id: 'lowCo2', label: 'Prefer low-CO₂ options' },
+  { id: 'family', label: 'Family with kids' },
+  { id: 'offPeak', label: 'Off-peak / less-crowded' },
+  { id: 'budget', label: 'Budget-friendly first' },
+  { id: 'accessibility', label: 'Accessibility mode' },
 ]
 
 export default function Plan() {
@@ -22,19 +31,30 @@ export default function Plan() {
   const [tab, setTab] = useState('transport')
   const [fromCity, setFromCity] = useState('Munich, Germany')
   const [toCity, setToCity] = useState('Lisbon, Portugal')
-  const [departDate, setDepartDate] = useState(() => new Date(2026, 5, 15))
-  const [returnDate, setReturnDate] = useState(() => new Date(2026, 5, 22))
+  const [departDate, setDepartDate] = useState(() => new Date(2026, 6, 25))
+  const [returnDate, setReturnDate] = useState(() => new Date(2026, 6, 30))
   const [selectedTransport, setSelectedTransport] = useState(null)
   const [generatedPlan, setGeneratedPlan] = useState(null)
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState('')
+  const [searchPreferences, setSearchPreferences] = useState({
+    lowCo2: true,
+    family: false,
+    offPeak: true,
+    budget: false,
+    accessibility: false,
+  })
+  const [activityCount, setActivityCount] = useState(12)
   const transportOptions = generatedPlan?.transport?.length ? generatedPlan.transport : TRANSPORT_OPTIONS
-  const activityOptions = generatedPlan?.activities?.length ? generatedPlan.activities : DO_OPTIONS
+  const activityDisplayCount = generatedPlan?.activityCount || 12
+  const activityOptions = (generatedPlan?.activities?.length ? generatedPlan.activities : DO_OPTIONS).slice(0, activityDisplayCount)
   const stayOptions = generatedPlan?.stays?.length ? generatedPlan.stays : STAY_OPTIONS
+  const eatOptions = generatedPlan?.eats?.length ? generatedPlan.eats : EAT_OPTIONS
 
   const handleSearch = async () => {
     setSearchLoading(true)
     setSearchError('')
+    const requestedActivityCount = activityCount
 
     try {
       const response = await fetch(`${API_BASE}/api/plan-trip`, {
@@ -45,6 +65,8 @@ export default function Plan() {
           to_city: toCity,
           depart_date: formatDateForDb(departDate),
           return_date: formatDateForDb(returnDate),
+          preferences: searchPreferences,
+          activity_count: activityCount,
         }),
       })
 
@@ -53,7 +75,10 @@ export default function Plan() {
       }
 
       const data = await response.json()
-      setGeneratedPlan(normalizeGeneratedPlan(data))
+      setGeneratedPlan({
+        ...normalizeGeneratedPlan(data),
+        activityCount: requestedActivityCount,
+      })
       setSelectedTransport(null)
       setTab('transport')
       showToast('Search results updated.', 'forest')
@@ -77,11 +102,13 @@ export default function Plan() {
         onToCityChange={setToCity}
         onDepartDateChange={setDepartDate}
         onReturnDateChange={setReturnDate}
+        preferences={searchPreferences}
+        onPreferenceToggle={(id) => setSearchPreferences((current) => ({ ...current, [id]: !current[id] }))}
+        activityCount={activityCount}
+        onActivityCountChange={setActivityCount}
         onSearch={handleSearch}
         searchLoading={searchLoading}
         error={searchError}
-        summary={generatedPlan?.summary}
-        source={generatedPlan?.source}
         notice={generatedPlan?.notice}
       />
       <div className="rounded-3xl bg-white border border-forest-100 shadow-card">
@@ -93,13 +120,13 @@ export default function Plan() {
             departDate={departDate}
             returnDate={returnDate}
             transportOptions={transportOptions}
-            searchSource={generatedPlan?.source}
             selectedTransport={selectedTransport}
             onTransportSelect={setSelectedTransport}
           />
         )}
         {tab === 'stay'      && <StayPanel stays={stayOptions} />}
-        {tab === 'do'        && <DoPanel activities={activityOptions} />}
+        {tab === 'eat'       && <EatPanel eats={eatOptions} />}
+        {tab === 'do'        && <DoPanel activities={activityOptions} limit={activityDisplayCount} />}
       </div>
     </div>
   )
@@ -137,6 +164,9 @@ function normalizeGeneratedPlan(data) {
         score: Number(item.score ?? 80),
         gradient: item.gradient || 'from-moss-300 to-forest-500',
         warning: Boolean(item.warning),
+        imageUrl: item.imageUrl || '',
+        imageAlt: item.imageAlt || item.name || 'Activity photo',
+        photoSourceUrl: item.photoSourceUrl || '',
       }))
     : []
 
@@ -148,6 +178,24 @@ function normalizeGeneratedPlan(data) {
         district: item.district || '',
         price: item.price || '',
         score: Number(item.score ?? 85),
+        imageUrl: item.imageUrl || '',
+        imageAlt: item.imageAlt || item.name || 'Hotel photo',
+        photoSourceUrl: item.photoSourceUrl || '',
+        hotelPageUrl: item.hotelPageUrl || item.photoSourceUrl || '',
+      }))
+    : []
+
+  const eats = Array.isArray(data?.eats)
+    ? data.eats.map((item, index) => ({
+        id: item.id || `search-eat-${index}`,
+        emoji: item.emoji || '🥗',
+        name: item.name || 'Vegetarian restaurant',
+        district: item.district || '',
+        tags: Array.isArray(item.tags) ? item.tags.filter(Boolean) : ['Vegetarian'],
+        price: item.price || '€€',
+        score: Number(item.score ?? 85),
+        detail: item.detail || 'Local vegetarian or vegan pick.',
+        restaurantPageUrl: item.restaurantPageUrl || '',
       }))
     : []
 
@@ -158,6 +206,7 @@ function normalizeGeneratedPlan(data) {
     transport,
     activities,
     stays,
+    eats,
   }
 }
 
@@ -170,11 +219,13 @@ function SearchPanel({
   onToCityChange,
   onDepartDateChange,
   onReturnDateChange,
+  preferences,
+  onPreferenceToggle,
+  activityCount,
+  onActivityCountChange,
   onSearch,
   searchLoading,
   error,
-  summary,
-  source,
   notice,
 }) {
   const [openDateField, setOpenDateField] = useState(null)
@@ -182,12 +233,16 @@ function SearchPanel({
 
   return (
     <div className="rounded-3xl bg-white border border-forest-100 p-6 shadow-card">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-display text-2xl font-extrabold">Plan a green trip</h2>
+      <div className="relative overflow-hidden rounded-2xl border border-forest-100 bg-[#F7FAF3] px-5 py-5">
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-48 bg-[linear-gradient(135deg,transparent_35%,rgba(58,122,67,.12)_35%,rgba(58,122,67,.12)_38%,transparent_38%,transparent_62%,rgba(244,184,96,.16)_62%,rgba(244,184,96,.16)_65%,transparent_65%)]" />
+        <div className="relative flex items-center justify-between gap-4">
+          <h2 className="font-display text-3xl font-extrabold text-ink">Plan a green trip</h2>
+          <div className="hidden h-10 w-10 rounded-full border border-forest-100 bg-white md:grid place-items-center text-lg">
+            🚆
+          </div>
         </div>
         {!authLoading && !authUser && (
-          <span className="text-xs font-semibold text-gold-600 bg-gold-50 border border-gold-100 rounded-full px-3 py-1">
+          <span className="mt-3 inline-flex w-fit text-xs font-semibold text-gold-700 bg-gold-50 border border-gold-100 rounded-full px-3 py-1">
             Sign in required to save history
           </span>
         )}
@@ -246,25 +301,112 @@ function SearchPanel({
           </button>
         </div>
       </div>
-      {(summary || error) && (
+      <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
+        <div>
+          <div className="text-xs font-semibold text-inkSoft">Preferences</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {SEARCH_PREFERENCES.map((preference) => {
+              const selected = Boolean(preferences[preference.id])
+
+              return (
+                <button
+                  key={preference.id}
+                  type="button"
+                  onClick={() => onPreferenceToggle(preference.id)}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                    selected
+                      ? 'border-forest-600 bg-forest-600 text-white'
+                      : 'border-forest-100 bg-white text-inkSoft hover:border-forest-300 hover:text-forest-700'
+                  }`}
+                >
+                  {preference.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="w-full xl:w-52">
+          <label className="text-xs font-semibold text-inkSoft">Activities</label>
+          <div className="mt-2 flex h-10 overflow-hidden rounded-xl border border-forest-100 bg-white">
+            <button
+              type="button"
+              onClick={() => onActivityCountChange(Math.max(12, activityCount - 2))}
+              disabled={activityCount <= 12}
+              className="grid w-10 place-items-center border-r border-forest-100 text-lg font-bold text-forest-700 hover:bg-forest-50 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-white"
+            >
+              -
+            </button>
+            <div className="grid flex-1 place-items-center font-display text-sm font-extrabold">
+              {activityCount}
+            </div>
+            <button
+              type="button"
+              onClick={() => onActivityCountChange(Math.min(20, activityCount + 2))}
+              disabled={activityCount >= 20}
+              className="grid w-10 place-items-center border-l border-forest-100 text-lg font-bold text-forest-700 hover:bg-forest-50 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-white"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+      {searchLoading && <SearchProgress />}
+      {(error || notice) && (
         <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
           error
             ? 'border-red-100 bg-red-50 text-red-700'
             : 'border-forest-100 bg-forest-50 text-inkSoft'
         }`}>
-          {error || summary}
-          {!error && source && (
-            <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-forest-600">
-              {source}
-            </span>
-          )}
+          {error}
           {!error && notice && (
-            <div className="mt-2 text-xs text-gold-700">
+            <div className="text-xs text-gold-700">
               {notice}
             </div>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function SearchProgress() {
+  const steps = [
+    'Checking low-carbon route options.',
+    'Comparing stays near transit.',
+    'Finding vegetarian and vegan restaurants.',
+    'Picking activities that match your preferences.',
+    'Polishing your trip plan.',
+  ]
+  const [stepIndex, setStepIndex] = useState(0)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setStepIndex((current) => (current + 1) % steps.length)
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [steps.length])
+
+  return (
+    <div className="mt-5 overflow-hidden rounded-2xl border border-forest-100 bg-forest-50 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="font-display text-sm font-extrabold text-forest-800">
+            Building your trip plan
+          </div>
+          <div className="mt-1 min-h-4 text-xs text-inkSoft">
+            {steps[stepIndex]}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="h-2 w-2 animate-bounce rounded-full bg-forest-600 [animation-delay:-0.2s]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-forest-600 [animation-delay:-0.1s]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-forest-600" />
+        </div>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
+        <div className="h-full w-1/3 animate-search-progress rounded-full bg-forest-600" />
+      </div>
     </div>
   )
 }
@@ -480,10 +622,12 @@ function Field({ label, defaultValue, value, onChange, citySearch = false, class
 }
 
 /* ─── TRANSPORT ─────────────────────────────────────────────────────── */
-function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOptions, searchSource, selectedTransport, onTransportSelect }) {
+function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOptions, selectedTransport, onTransportSelect }) {
   const showToast = useToast()
   const { addPoints } = useUser()
   const { authUser, loading, refreshProfile } = useAuth()
+  const selectedOption = transportOptions.find((option) => option.id === selectedTransport)
+  const selectedCo2SavedKg = selectedOption ? calculateCo2SavedKg(selectedOption, transportOptions) : 0
 
   const saveTrip = async (transport, co2SavedKg) => {
     if (!authUser) return { saved: false, reason: 'not-authenticated' }
@@ -493,6 +637,7 @@ function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOpt
       start_date: formatDateForDb(departDate),
       end_date: formatDateForDb(returnDate),
       status: 'planned',
+      selected_transport_id: transport.id,
       co2_total_kg: parseCo2Kg(transport.co2),
       points_earned: transport.pointsReward,
     })
@@ -534,12 +679,54 @@ function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOpt
 
   return (
     <div className="p-6 grid grid-cols-12 gap-6">
+      <div className="col-span-12">
+        {selectedOption ? (
+          <div className="overflow-hidden rounded-2xl border border-forest-200 bg-forest-700 text-white shadow-card">
+            <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center">
+              <div className="flex items-start gap-4">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/15">
+                  <CheckCircle2 size={26} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-widest text-moss-200">Trip planned</div>
+                  <div className="mt-1 font-display text-2xl font-extrabold">
+                    Your trip is created with {selectedOption.title}
+                  </div>
+                  <div className="mt-2 text-sm text-white/80">
+                    This transport choice has been saved as a planned trip in your history.
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-2 text-sm md:min-w-[280px]">
+                <TripSummaryLine icon={<Route size={16} />} label={`${fromCity} → ${toCity}`} />
+                <TripSummaryLine icon={<CalendarDays size={16} />} label={`${formatTripDate(departDate)} to ${formatTripDate(returnDate)}`} />
+                <TripSummaryLine icon={<Leaf size={16} />} label={`${selectedCo2SavedKg} kg CO₂ saved · +${selectedOption.pointsReward} pts`} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-gold-100 bg-gold-50 px-5 py-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="font-display text-lg font-extrabold text-forest-800">
+                  Choose a transport option to create this trip
+                </div>
+                <div className="mt-1 text-sm text-inkSoft">
+                  Picking one route will save {fromCity} → {toCity} as a planned trip, add it to your history, and award CO₂/points.
+                </div>
+              </div>
+              <div className="shrink-0 rounded-full border border-gold-200 bg-white px-4 py-2 text-sm font-bold text-gold-700">
+                Transport = Trip plan
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       <div className="col-span-12 space-y-4">
         {transportOptions.map((opt) => (
           <TransportCard
             key={opt.id}
             opt={opt}
-            searchSource={searchSource}
             selected={selectedTransport === opt.id}
             disabled={selectedTransport !== null}
             onSelect={async () => {
@@ -556,7 +743,7 @@ function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOpt
               const result = await addPoints(opt.pointsReward, {
                 type: 'transport',
                 emoji: opt.emoji,
-                title: 'Transport selected',
+                title: 'Trip planned',
                 detail: `${fromCity} → ${toCity} · ${opt.title}`,
                 tone: opt.tone === 'forest' ? 'forest' : opt.tone === 'moss' ? 'moss' : 'gold',
                 co2SavedKg,
@@ -572,11 +759,7 @@ function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOpt
                 result?.saved === false || tripResult?.saved === false || tripResult?.profileSaved === false ? 'forest' : 'gold'
               )
               const ach = result?.achievements
-              if (ach?.newBadges?.length) {
-                showToast(`🏅 New badge unlocked! See your Badges page.`, 'gold')
-              }
-              ;(ach?.completedChallenges || []).forEach((c) =>
-                showToast(`Challenge complete: ${c.name} · +${c.reward} pts 🏆`, 'gold'))
+              showAchievementToasts(showToast, ach)
             }}
           />
         ))}
@@ -584,6 +767,23 @@ function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOpt
 
     </div>
   )
+}
+
+function TripSummaryLine({ icon, label }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 font-semibold text-white/90">
+      <span className="text-moss-200">{icon}</span>
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function showAchievementToasts(showToast, achievements) {
+  if (achievements?.newBadges?.length) {
+    showToast('🏅 New badge unlocked! See your Badges page.', 'gold')
+  }
+  ;(achievements?.completedChallenges || []).forEach((challenge) =>
+    showToast(`Challenge complete: ${challenge.name} · +${challenge.reward} pts 🏆`, 'gold'))
 }
 
 function formatDateForDb(date) {
@@ -617,7 +817,7 @@ function roundCo2(value) {
 
 
 
-function TransportCard({ opt, searchSource, selected, disabled, onSelect }) {
+function TransportCard({ opt, selected, disabled, onSelect }) {
   const tagStyle = opt.tone === 'rose'
     ? { background: '#FEE2E2', color: '#B91C1C' }
     : null
@@ -641,11 +841,6 @@ function TransportCard({ opt, searchSource, selected, disabled, onSelect }) {
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-display font-bold text-lg">{opt.title}</span>
-            {opt.generated && (
-              <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100">
-                AI route{searchSource ? ` · ${searchSource}` : ''}
-              </span>
-            )}
             {opt.tag && (
               <span
                 className={`text-[11px] font-semibold rounded-full px-2 py-0.5 ${
@@ -701,17 +896,31 @@ function TransportCard({ opt, searchSource, selected, disabled, onSelect }) {
               : 'px-4 py-2 rounded-xl bg-white border border-forest-200 text-forest-700 text-sm font-semibold'
           }
         >
-          {selected ? 'Selected' : disabled ? 'Locked' : opt.tone === 'rose' ? 'Select anyway' : opt.tone === 'forest' ? 'Select →' : 'Select'}
+          {selected ? 'Trip planned' : disabled ? 'Trip already planned' : opt.tone === 'rose' ? 'Plan anyway' : 'Plan trip'}
         </button>
       </div>
-      {opt.why && (
-        <div className="mt-4 text-[12px] text-inkSoft bg-cream rounded-xl p-3 border border-forest-100">
-          <strong className="text-forest-700">Why we recommend this:</strong> {opt.why}
+      {(opt.why || opt.warning) && (
+        <div className={`mt-4 text-[12px] rounded-xl p-3 border ${
+          opt.warning
+            ? 'bg-gold-50 border-gold-100 text-gold-700'
+            : 'bg-cream border-forest-100 text-inkSoft'
+        }`}>
+          <strong className={opt.warning ? 'text-gold-700' : 'text-forest-700'}>Travel note:</strong>{' '}
+          {[opt.why, opt.warning].filter(Boolean).join(' ')}
         </div>
       )}
-      {opt.warning && (
-        <div className="mt-4 text-[12px] rounded-xl p-3 border bg-gold-50 border-gold-100 text-gold-700">
-          <strong>Heads‑up:</strong> {opt.warning}
+      {selected && (
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-forest-200 bg-white p-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-forest-600">Saved as a planned trip</div>
+            <div className="mt-1 text-sm text-inkSoft">
+              This route is now the transport anchor for your trip history.
+            </div>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-forest-600 px-3 py-1.5 text-sm font-semibold text-white">
+            <CheckCircle2 size={16} />
+            Trip created
+          </div>
         </div>
       )}
     </div>
@@ -727,9 +936,6 @@ function Field2({ label, value, valueClass = '', valueStyle }) {
   )
 }
 
-/* ─── STAY ──────────────────────────────────────────────────────────── */
-const STAY_GRADIENTS = ['from-moss-300 to-forest-500', 'from-forest-300 to-moss-500', 'from-moss-200 to-forest-400']
-
 function StayPanel({ stays = STAY_OPTIONS }) {
   const showToast = useToast()
   const { addPoints } = useUser()
@@ -738,7 +944,7 @@ function StayPanel({ stays = STAY_OPTIONS }) {
   return (
     <>
       <div className="p-6 grid grid-cols-3 gap-5">
-        {stays.map((s, i) => {
+        {stays.map((s) => {
           const selected = selectedStay === s.id
           const disabled = selectedStay !== null
 
@@ -751,27 +957,29 @@ function StayPanel({ stays = STAY_OPTIONS }) {
                   : 'border-forest-100 hover:shadow-cardHover'
               }`}
             >
-              <div className={`h-40 bg-gradient-to-br ${s.gradient || STAY_GRADIENTS[i % STAY_GRADIENTS.length]} relative`}>
-                <span className="absolute top-3 left-3 text-[11px] font-semibold bg-white/90 text-forest-700 rounded-full px-2 py-0.5">
-                  {s.cert}
-                </span>
-                <span className="absolute top-3 right-3 text-[11px] font-semibold bg-gold-50 text-gold-500 rounded-full px-2 py-0.5">
-                  +5 pts/night
-                </span>
-              </div>
               <div className="p-4">
                 <div className="font-display font-bold">{s.name}</div>
                 <div className="text-xs text-inkSoft">{s.district}</div>
+                {(s.hotelPageUrl || s.photoSourceUrl) && (
+                  <a
+                    href={s.hotelPageUrl || s.photoSourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex text-[11px] font-semibold text-forest-700 hover:underline"
+                  >
+                    Hotel source
+                  </a>
+                )}
                 <div className="mt-3 flex items-center justify-between text-sm">
                   <span className="font-bold">{s.price}<span className="text-mute font-normal">/night</span></span>
-                  <span className="text-xs font-semibold text-forest-700">Green‑score {s.score}</span>
+                  <span className="text-xs font-semibold text-gold-500 bg-gold-50 border border-gold-100 rounded-full px-2 py-0.5">+3 pts</span>
                 </div>
                 <button
                   disabled={disabled}
                   onClick={async () => {
                     if (selectedStay !== null) return
                     setSelectedStay(s.id)
-                    const result = await addPoints(5, {
+                    const result = await addPoints(3, {
                       type: 'stay',
                       emoji: '🏨',
                       title: 'Stay selected',
@@ -781,9 +989,10 @@ function StayPanel({ stays = STAY_OPTIONS }) {
                     showToast(
                       result?.saved === false
                         ? `${s.name} selected, but backend history was not saved.`
-                        : `${s.name} selected! +5 pts`,
+                        : `${s.name} selected! +3 pts`,
                       result?.saved === false ? 'forest' : 'gold'
                     )
+                    showAchievementToasts(showToast, result?.achievements)
                   }}
                   className={
                     selected
@@ -808,14 +1017,97 @@ function StayPanel({ stays = STAY_OPTIONS }) {
 }
 
 /* ─── EAT ───────────────────────────────────────────────────────────── */
-// Restaurant (Eat) recommendations were removed per final design.
-// The backend may still return an `eats` array, but the UI no longer renders it.
+function EatPanel({ eats = EAT_OPTIONS }) {
+  const showToast = useToast()
+  const { addPoints } = useUser()
+  const [selectedEats, setSelectedEats] = useState([])
+
+  return (
+    <div className="p-6 grid grid-cols-3 gap-5">
+      {eats.map((eat) => {
+        const selected = selectedEats.includes(eat.id)
+
+        return (
+          <div
+            key={eat.id}
+            className={`rounded-2xl border p-5 transition ${
+              selected
+                ? 'border-forest-400 shadow-card bg-forest-50/60'
+                : 'border-forest-100 hover:shadow-cardHover'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-moss-50 grid place-items-center text-2xl">
+                {eat.emoji}
+              </div>
+              <span className="text-xs font-semibold text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">
+                +3 pts
+              </span>
+            </div>
+            <div className="mt-4 font-display font-bold">{eat.name}</div>
+            <div className="mt-1 text-xs text-inkSoft">{eat.district}</div>
+            <p className="mt-3 text-sm text-inkSoft">{eat.detail}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {eat.tags.map((tag) => (
+                <span key={`${eat.id}-${tag}`} className="text-[11px] font-semibold rounded-full bg-cream border border-forest-100 px-2 py-0.5 text-inkSoft">
+                  {tag}
+                </span>
+              ))}
+              <span className="text-[11px] font-semibold rounded-full bg-gold-50 border border-gold-100 px-2 py-0.5 text-gold-500">
+                {eat.price}
+              </span>
+            </div>
+            {eat.restaurantPageUrl && (
+              <a
+                href={eat.restaurantPageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex text-[11px] font-semibold text-forest-700 hover:underline"
+              >
+                Restaurant source
+              </a>
+            )}
+            <button
+              disabled={selected}
+              onClick={async () => {
+                if (selectedEats.includes(eat.id)) return
+                setSelectedEats((current) => [...current, eat.id])
+                const result = await addPoints(3, {
+                  type: 'food',
+                  emoji: '🥗',
+                  title: 'Vegetarian restaurant selected',
+                  detail: eat.name,
+                  tone: 'forest',
+                })
+                showToast(
+                  result?.saved === false
+                    ? `${eat.name} selected, but backend history was not saved.`
+                    : `${eat.name} selected! +3 pts`,
+                  result?.saved === false ? 'forest' : 'gold'
+                )
+                showAchievementToasts(showToast, result?.achievements)
+              }}
+              className={
+                selected
+                  ? 'mt-4 w-full py-2 rounded-xl bg-forest-600 text-white text-sm font-semibold cursor-default'
+                  : 'mt-4 w-full py-2 rounded-xl gradient-forest text-white text-sm font-semibold'
+              }
+            >
+              {selected ? 'Selected' : 'Select'}
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 /* ─── DO ────────────────────────────────────────────────────────────── */
-function DoPanel({ activities = DO_OPTIONS }) {
+function DoPanel({ activities = DO_OPTIONS, limit = 12 }) {
   const showToast = useToast()
   const { addPoints } = useUser()
   const [selectedActivities, setSelectedActivities] = useState([])
+  const visibleActivities = activities.slice(0, limit)
 
   const selectActivity = async (activity) => {
     if (selectedActivities.includes(activity.id)) return
@@ -836,6 +1128,7 @@ function DoPanel({ activities = DO_OPTIONS }) {
           : `${activity.name} selected! +${activity.pointsReward} pts`,
         result?.saved === false ? 'forest' : 'gold'
       )
+      showAchievementToasts(showToast, result?.achievements)
     } else {
       const result = await addPoints(0, {
         type: 'activity',
@@ -850,13 +1143,14 @@ function DoPanel({ activities = DO_OPTIONS }) {
           : `${activity.name} selected`,
         'forest'
       )
+      showAchievementToasts(showToast, result?.achievements)
     }
   }
 
   return (
     <div className="p-6 grid grid-cols-12 gap-6">
-      <div className="col-span-8 grid grid-cols-2 gap-5">
-        {activities.map((d) => {
+      <div className="col-span-12 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {visibleActivities.map((d) => {
           const selected = selectedActivities.includes(d.id)
 
           return (
@@ -868,22 +1162,20 @@ function DoPanel({ activities = DO_OPTIONS }) {
                   : 'border-forest-100 hover:shadow-cardHover'
               }`}
             >
-              <div className={`h-32 bg-gradient-to-br ${d.gradient} relative`}>
-                <span
-                  className="absolute top-3 left-3 text-[11px] font-semibold rounded-full px-2 py-0.5"
-                  style={d.warning ? { background: '#FEE2E2', color: '#B91C1C' } : { background: 'rgba(255,255,255,.9)', color: '#234B25' }}
-                >
-                  {d.tag}
-                </span>
-                <span className={`absolute top-3 right-3 text-[11px] font-semibold rounded-full px-2 py-0.5 ${
-                  d.pointsReward > 0 ? 'bg-gold-50 text-gold-500' : 'bg-white/80 text-mute'
-                }`}>
-                  +{d.pointsReward} pts
-                </span>
-              </div>
+              <ActivityPhoto activity={d} />
               <div className="p-4">
                 <div className="font-display font-bold">{d.name}</div>
                 <div className="text-xs text-inkSoft">{d.detail}</div>
+                {d.photoSourceUrl && (
+                  <a
+                    href={d.photoSourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex text-[11px] font-semibold text-forest-700 hover:underline"
+                  >
+                    Photo source
+                  </a>
+                )}
                 <button
                   disabled={selected}
                   onClick={() => selectActivity(d)}
@@ -900,18 +1192,43 @@ function DoPanel({ activities = DO_OPTIONS }) {
           )
         })}
       </div>
-      <aside className="col-span-4 rounded-2xl border border-forest-100 p-5 bg-cream/40">
-        <div className="font-display font-bold">Map preview</div>
-        <div className="map-tile h-72 rounded-xl mt-3 relative border border-forest-100">
-          <span className="absolute" style={{ left: '18%', top: '24%' }}>📍</span>
-          <span className="absolute" style={{ left: '42%', top: '50%' }}>📍</span>
-          <span className="absolute" style={{ left: '62%', top: '34%' }}>📍</span>
-          <span className="absolute" style={{ left: '28%', top: '72%' }}>📍</span>
+    </div>
+  )
+}
+
+function ActivityPhoto({ activity }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  const showImage = activity.imageUrl && !imageFailed
+
+  return (
+    <div className={`h-36 bg-gradient-to-br ${activity.gradient} relative overflow-hidden`}>
+      {showImage && (
+        <img
+          src={activity.imageUrl}
+          alt={activity.imageAlt || activity.name}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setImageFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      {showImage && <div className="absolute inset-0 bg-gradient-to-t from-forest-900/40 via-transparent to-black/10" />}
+      {!showImage && (
+        <div className="absolute inset-0 grid place-items-center px-4 text-center text-sm font-semibold text-white/90">
+          {imageFailed ? 'Photo unavailable' : 'Search again to load photos'}
         </div>
-        <div className="text-[11px] text-mute mt-2">
-          Activities clustered to minimise public‑transport hops. Source: OpenStreetMap.
-        </div>
-      </aside>
+      )}
+      <span
+        className="absolute top-3 left-3 text-[11px] font-semibold rounded-full px-2 py-0.5"
+        style={activity.warning ? { background: '#FEE2E2', color: '#B91C1C' } : { background: 'rgba(255,255,255,.9)', color: '#234B25' }}
+      >
+        {activity.tag}
+      </span>
+      <span className={`absolute top-3 right-3 text-[11px] font-semibold rounded-full px-2 py-0.5 ${
+        activity.pointsReward > 0 ? 'bg-gold-50 text-gold-500' : 'bg-white/80 text-mute'
+      }`}>
+        +{activity.pointsReward} pts
+      </span>
     </div>
   )
 }

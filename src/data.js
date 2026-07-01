@@ -71,7 +71,7 @@ export const TRANSPORT_OPTIONS = [
     detail: 'Munich → Paris → Hendaye → Lisbon · 1 transfer + 1 overnight · Wi‑Fi · scenic Atlantic coast',
     duration: '32 h', price: '€142', co2: '78 kg', score: '96 / 100',
     tone: 'forest',
-    why: '75% lower CO₂ than the cheapest flight on this route. Matches your "prefer train" preference. Eligible for your Green Commuter Week challenge.',
+    why: '75% lower CO₂ than the cheapest flight on this route. Matches your "prefer train" preference.',
   },
   {
     id: 'bus', emoji: '🚌', title: 'Bus + Train · FlixBus + Renfe',
@@ -92,39 +92,44 @@ export const TRANSPORT_OPTIONS = [
 
 // Stay
 export const STAY_OPTIONS = [
-  { id: 's1', name: 'Memmo Alfama Hotel', cert: '🌿 GreenKey', district: 'Alfama · 100% renewable energy · solar water', price: '€186', score: 94, gradient: 'from-moss-300 to-forest-500' },
-  { id: 's2', name: 'Inspira Liberdade Boutique', cert: '🌿 EU Ecolabel', district: 'Avenida · zero‑waste kitchen · grey water reuse', price: '€164', score: 91, gradient: 'from-forest-300 to-moss-500' },
-  { id: 's3', name: 'Casa do Príncipe Real', cert: '🌿 Biosphere', district: 'Príncipe Real · local‑owned · plant‑based breakfast', price: '€132', score: 87, gradient: 'from-moss-200 to-forest-400' },
+  { id: 's1', name: 'Memmo Alfama Hotel', cert: '🌿 GreenKey', district: 'Alfama · 100% renewable energy · solar water', price: '€186', score: 94 },
+  { id: 's2', name: 'Inspira Liberdade Boutique', cert: '🌿 EU Ecolabel', district: 'Avenida · zero-waste kitchen · grey water reuse', price: '€164', score: 91 },
+  { id: 's3', name: 'Casa do Príncipe Real', cert: '🌿 Biosphere', district: 'Príncipe Real · local-owned · plant-based breakfast', price: '€132', score: 87 },
+  { id: 's4', name: 'NEYA Lisboa Hotel', cert: '🌿 GreenKey', district: 'Saldanha · energy-efficient rooms · waste sorting', price: '€148', score: 89 },
+  { id: 's5', name: 'Sofitel Lisbon Liberdade', cert: '🌿 GreenKey', district: 'Avenida da Liberdade · certified sustainability programme', price: '€212', score: 88 },
+  { id: 's6', name: 'Corpo Santo Lisbon Historical Hotel', cert: '🌿 EU Ecolabel', district: 'Cais do Sodre · refill amenities · heritage retrofit', price: '€198', score: 90 },
 ]
 
 // Eat
 export const EAT_OPTIONS = [
-  { id: 'e1', emoji: '🥗', name: 'Ao 26 — Vegan Food Project', district: 'Chiado · 100% plant‑based · seasonal menu', tags: ['Local sourced', 'Low food‑miles'], price: '€€', score: 95 },
-  { id: 'e2', emoji: '🐟', name: 'Sea Me — Peixaria Moderna', district: 'Chiado · MSC‑certified seafood · day‑boat catch', tags: ['MSC', 'Local fish'], price: '€€€', score: 82 },
-  { id: 'e3', emoji: '🌱', name: 'Príncipe do Calhariz', district: 'Bairro Alto · vegetarian · family‑run since 1978', tags: ['Local owned', 'Vegetarian'], price: '€', score: 89 },
+  { id: 'e1', emoji: '🥗', name: 'Ao 26 — Vegan Food Project', district: 'Chiado', tags: ['Vegan', 'Traditional'], price: '€€', score: 95, detail: 'Plant-based takes on Portuguese classics near Chiado.', restaurantPageUrl: 'https://www.ao26.pt/' },
+  { id: 'e2', emoji: '🌱', name: 'Organi Chiado', district: 'Chiado', tags: ['Vegan', 'Sustainable'], price: '€€', score: 92, detail: 'Organic vegan bowls, mains and desserts in the centre.', restaurantPageUrl: 'https://www.organi.pt/' },
+  { id: 'e3', emoji: '🥬', name: "My Mother's Daughters", district: 'Sao Bento', tags: ['Vegan', 'Organic'], price: '€€', score: 91, detail: 'Creative vegan brunch and seasonal plates.', restaurantPageUrl: 'https://www.mymothersdaughters.pt/' },
+  { id: 'e4', emoji: '🍲', name: 'The Green Affair', district: 'Saldanha', tags: ['Vegan', 'Modern'], price: '€€', score: 88, detail: 'Modern vegan dining with burgers, bowls and Portuguese touches.', restaurantPageUrl: 'https://thegreenaffair.pt/' },
+  { id: 'e5', emoji: '🥙', name: 'Jardim das Cerejas', district: 'Baixa', tags: ['Vegetarian', 'Buffet'], price: '€', score: 85, detail: 'Affordable vegetarian buffet close to central transit.', restaurantPageUrl: 'https://www.happycow.net/reviews/jardim-das-cerejas-lisbon-6639' },
+  { id: 'e6', emoji: '🍛', name: 'Legumi Sushi Vegan', district: 'Arroios', tags: ['Vegan', 'Local favourite'], price: '€€', score: 87, detail: 'Vegan sushi and plant-based small plates.', restaurantPageUrl: 'https://www.happycow.net/reviews/legumi-sushi-vegan-lisbon-327787' },
 ]
 
 // Do
 export const DO_OPTIONS = [
-  { id: 'd1', name: 'Monsanto Forest Park hike', tag: 'Low‑crowd', pointsReward: 10, detail: 'Free · 3h · 9.2 km · public bus 711', crowd: 1, score: 98, gradient: 'from-moss-300 to-forest-500' },
-  { id: 'd2', name: 'Museu Coleção Berardo', tag: 'Off‑peak · weekday', pointsReward: 7, detail: '€7 · indoor · accessible · Belém line tram 15E', crowd: 2, score: 86, gradient: 'from-forest-400 to-forest-700' },
-  { id: 'd3', name: 'LX Factory by foot', tag: 'Hidden gem', pointsReward: 5, detail: 'Free · self‑guided · independent shops', crowd: 3, score: 82, gradient: 'from-moss-200 to-moss-500' },
-  { id: 'd4', name: 'Belém Tower (queues 90 min)', tag: 'Crowded · peak', pointsReward: 1, detail: '€8 · consider weekday 9am or visit nearby instead', crowd: 5, score: 41, gradient: 'from-gold-200 to-gold-400', warning: true },
+  { id: 'd1', name: 'Belém Tower', tag: 'Iconic · go early', pointsReward: 7, detail: '€8 · riverside landmark · tram 15E', crowd: 4, score: 84, gradient: 'from-moss-300 to-forest-500', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Lisbon_Torre_de_Bel%C3%A9m_BW_2018-10-03_16-33-21.jpg/960px-Lisbon_Torre_de_Bel%C3%A9m_BW_2018-10-03_16-33-21.jpg', imageAlt: 'Belem Tower in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Lisbon_Torre_de_Bel%C3%A9m_BW_2018-10-03_16-33-21.jpg' },
+  { id: 'd2', name: 'Jerónimos Monastery cloister', tag: 'Off-peak · weekday', pointsReward: 7, detail: '€12 · heritage site · combine with Belém walk', crowd: 3, score: 88, gradient: 'from-forest-400 to-forest-700', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Cloister_of_the_Jer%C3%B3nimos_Monastery_in_Bel%C3%A9m%2C_Lisbon%2C_20250604_1313_9204.jpg/960px-Cloister_of_the_Jer%C3%B3nimos_Monastery_in_Bel%C3%A9m%2C_Lisbon%2C_20250604_1313_9204.jpg', imageAlt: 'Jeronimos Monastery cloister', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Cloister_of_the_Jer%C3%B3nimos_Monastery_in_Bel%C3%A9m,_Lisbon,_20250604_1313_9204.jpg' },
+  { id: 'd3', name: 'Alfama by foot', tag: 'Low-crowd lanes', pointsReward: 8, detail: 'Free · self-guided · viewpoints and stairs', crowd: 2, score: 90, gradient: 'from-moss-200 to-moss-500', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Alfama-CCBY.jpg/960px-Alfama-CCBY.jpg', imageAlt: 'Alfama district in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Alfama-CCBY.jpg' },
+  { id: 'd4', name: 'Rua Augusta Arch', tag: 'Central · walkable', pointsReward: 5, detail: '€4.50 · city view · pair with riverside stroll', crowd: 3, score: 82, gradient: 'from-forest-300 to-moss-500', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Arco_Triunfal_da_Rua_Augusta%2C_Plaza_del_Comercio%2C_Lisboa%2C_Portugal%2C_2012-05-12%2C_DD_02.JPG/960px-Arco_Triunfal_da_Rua_Augusta%2C_Plaza_del_Comercio%2C_Lisboa%2C_Portugal%2C_2012-05-12%2C_DD_02.JPG', imageAlt: 'Rua Augusta Arch in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Arco_Triunfal_da_Rua_Augusta,_Plaza_del_Comercio,_Lisboa,_Portugal,_2012-05-12,_DD_02.JPG' },
+  { id: 'd5', name: 'Bica Funicular walk', tag: 'Transit heritage', pointsReward: 5, detail: '€4 · short ride or uphill walk · photo stop', crowd: 3, score: 80, gradient: 'from-moss-300 to-forest-600', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Ascensor_da_Bica_01.JPG/960px-Ascensor_da_Bica_01.JPG', imageAlt: 'Bica funicular in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Ascensor_da_Bica_01.JPG' },
+  { id: 'd6', name: 'Lisbon City Museum', tag: 'Indoor · quieter', pointsReward: 6, detail: 'Museum stop · good midday heat break', crowd: 2, score: 84, gradient: 'from-forest-400 to-moss-600', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Lisbon_City_Museum%2C_2006-01-04.jpg/960px-Lisbon_City_Museum%2C_2006-01-04.jpg', imageAlt: 'Lisbon City Museum', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Lisbon_City_Museum,_2006-01-04.jpg' },
+  { id: 'd7', name: 'MAAT riverfront', tag: 'Architecture · tram', pointsReward: 6, detail: '€11 · riverfront museum · Belém line', crowd: 2, score: 86, gradient: 'from-moss-200 to-forest-400', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Building_of_the_Museum_of_Art%2C_Architecture_and_Technology_in_Lisbon%2C_20250604_2006_9600.jpg/960px-Building_of_the_Museum_of_Art%2C_Architecture_and_Technology_in_Lisbon%2C_20250604_2006_9600.jpg', imageAlt: 'MAAT museum in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Building_of_the_Museum_of_Art,_Architecture_and_Technology_in_Lisbon,_20250604_2006_9600.jpg' },
+  { id: 'd8', name: 'Oceanário de Lisboa', tag: 'Family · metro', pointsReward: 4, detail: '€25 · Parque das Nações · metro access', crowd: 4, score: 78, gradient: 'from-forest-500 to-moss-400', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Gabriel_at_the_Tropical_Indian_at_Lisbon_Oceanarium%2C_Portugal_julesvernex2.jpg/960px-Gabriel_at_the_Tropical_Indian_at_Lisbon_Oceanarium%2C_Portugal_julesvernex2.jpg', imageAlt: 'Lisbon Oceanarium', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Gabriel_at_the_Tropical_Indian_at_Lisbon_Oceanarium,_Portugal_julesvernex2.jpg' },
+  { id: 'd9', name: 'Parque Eduardo VII', tag: 'Free · green space', pointsReward: 9, detail: 'Free · picnic-friendly · metro nearby', crowd: 1, score: 92, gradient: 'from-moss-300 to-forest-500', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/2025-08-22_Lisbon%2C_Parque_Eduardo_VII.jpg/960px-2025-08-22_Lisbon%2C_Parque_Eduardo_VII.jpg', imageAlt: 'Parque Eduardo VII in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:2025-08-22_Lisbon,_Parque_Eduardo_VII.jpg' },
+  { id: 'd10', name: 'Monsanto Forest Park hike', tag: 'Low-crowd', pointsReward: 10, detail: 'Free · 3h · 9.2 km · public bus 711', crowd: 1, score: 98, gradient: 'from-forest-400 to-forest-700', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/A_Lisbon_view.jpg/960px-A_Lisbon_view.jpg', imageAlt: 'Lisbon green city view', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:A_Lisbon_view.jpg' },
+  { id: 'd11', name: 'LX Factory by tram', tag: 'Local creative hub', pointsReward: 6, detail: 'Free entry · tram 15E · shops, murals and reused industrial spaces', crowd: 3, score: 84, gradient: 'from-moss-200 to-forest-400', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/LX_Factory_%2844389794110%29.jpg/960px-LX_Factory_%2844389794110%29.jpg', imageAlt: 'LX Factory in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:LX_Factory_(44389794110).jpg' },
+  { id: 'd12', name: 'Gulbenkian Garden pause', tag: 'Quiet · accessible', pointsReward: 7, detail: 'Free garden · museum nearby · metro access and shaded paths', crowd: 1, score: 91, gradient: 'from-forest-300 to-moss-500', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Jardim_da_Funda%C3%A7%C3%A3o_Calouste_Gulbenkian_01.jpg/960px-Jardim_da_Funda%C3%A7%C3%A3o_Calouste_Gulbenkian_01.jpg', imageAlt: 'Gulbenkian Garden in Lisbon', photoSourceUrl: 'https://commons.wikimedia.org/wiki/File:Jardim_da_Funda%C3%A7%C3%A3o_Calouste_Gulbenkian_01.jpg' },
 ]
 
-// Challenges
-export const ACTIVE_CHALLENGE = {
-  name: 'Green Commuter Week',
-  description: "Don't take a taxi or ride‑share for 7 consecutive days. Use public transport, bike or your feet.",
-  reward: 20, rewardBadge: 'No‑Taxi Ninja',
-  progress: [true, true, true, 'today', false, false, false], // Mon..Sun
-}
 export const AVAILABLE_CHALLENGES = [
-  { id: 'c1', emoji: '🌿', name: 'Plant‑Based Weekend', detail: '3 plant‑based meals across Sat & Sun.', reward: 30, joined: 312 },
+  { id: 'c1', emoji: '🌿', name: 'Plant‑Based Meals', detail: 'Choose 3 plant-based meals during your trip.', reward: 30, joined: 312 },
   { id: 'c2', emoji: '🚆', name: 'Train Over Plane', detail: 'Book 1 train trip ≥500 km instead of a flight this month.', reward: 50, joined: 128 },
   { id: 'c3', emoji: '🏔️', name: 'Off‑Peak Explorer', detail: 'Travel to a low‑season destination (Mar / Oct / Nov).', reward: 40, joined: 94 },
-  { id: 'c4', emoji: '♻️', name: 'Zero‑Waste Traveler', detail: 'Use a reusable bottle every day of your next trip.', reward: 15, joined: 501 },
-  { id: 'c5', emoji: '🚲', name: 'Pedal Power 50k', detail: 'Cover 50 km by bike in one week (Strava connect).', reward: 25, joined: 214 },
   { id: 'c6', emoji: '🛏️', name: 'Stay Green', detail: 'Book 1 GreenKey / EU‑Ecolabel hotel this month.', reward: 20, joined: 187 },
 ]
 
@@ -134,8 +139,8 @@ export const LEADERBOARD = [
   { rank: 2, name: 'Lukas Maier',     initials: 'LM', tier: 'Eco Pathfinder', points: 2990, action: 'Train Munich → Berlin', co2: '38 kg' },
   { rank: 3, name: 'Jana Kraus',      initials: 'JK', tier: 'Eco Explorer', points: 2776, action: 'GreenKey stay · 4 nights', co2: '24 kg' },
   { rank: 4, name: 'Felix Bauer',     initials: 'FB', points: 2602, action: 'Train Munich → Vienna', co2: '42 kg' },
-  { rank: 5, name: 'Mira Singh',      initials: 'MS', points: 2488, action: 'Plant‑Based Weekend', co2: '31 kg' },
-  { rank: 6, name: 'Anton Weber',     initials: 'AW', points: 2401, action: 'No‑Taxi 7‑day streak', co2: '28 kg' },
+  { rank: 5, name: 'Mira Singh',      initials: 'MS', points: 2488, action: 'Plant‑based meals', co2: '31 kg' },
+  { rank: 6, name: 'Anton Weber',     initials: 'AW', points: 2401, action: 'Train Munich → Zurich', co2: '28 kg' },
   { rank: 7, name: 'Elena Romano',    initials: 'ER', points: 2310, action: 'Cycled 64 km commute', co2: '22 kg' },
   { rank: 8, name: 'Henrik Olsen',    initials: 'HO', points: 2205, action: 'EU‑Ecolabel stay (3 nights)', co2: '18 kg' },
 ]
@@ -148,7 +153,7 @@ export const BADGES = [
   { id: 'b4', emoji: '🚆', name: 'Rail Romantic', detail: '5 train trips ≥300 km', unlockedOn: '15 Apr', unlocked: true },
   { id: 'b5', emoji: '🌱', name: 'Plant Powered', detail: '20 plant‑based meals', unlockedOn: '7 Apr', unlocked: true },
   { id: 'b6', emoji: '🏨', name: 'Green Sleeper', detail: '5 GreenKey stays', unlockedOn: '28 Mar', unlocked: true },
-  { id: 'b7', name: 'No‑Taxi Ninja', detail: 'Finish Green Commuter Week', unlocked: false, progress: 43, progressText: 'Day 3/7' },
+  { id: 'b7', name: 'Transit Saver', detail: 'Choose low-carbon transport', unlocked: false, progress: 43, progressText: '3/7 actions' },
   { id: 'b8', name: 'City Saver', detail: 'Avoid Venice, BCN & AMS in peak', unlocked: false },
   { id: 'b9', name: 'Slow Traveller', detail: 'Stay ≥4 nights in one place', unlocked: false },
   { id: 'b10', name: 'Hidden‑Gem Hunter', detail: '3 destinations off the top‑50 list', unlocked: false },

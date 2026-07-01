@@ -49,7 +49,7 @@ export default function Login() {
             Welcome back.<br />The planet missed you.
           </h2>
           <p className="mt-4 text-moss-100 max-w-md">
-            Sign in to continue your Green Commuter Week challenge and climb the Munich leaderboard.
+            Sign in to continue your eco challenges and climb the Munich leaderboard.
           </p>
         </div>
         <div className="text-xs text-moss-200">Lab Course · TUM CM · SS 2026</div>

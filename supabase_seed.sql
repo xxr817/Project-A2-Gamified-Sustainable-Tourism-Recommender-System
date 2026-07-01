@@ -46,7 +46,7 @@ insert into public.transport_options (id, destination_id, emoji, title, tag, poi
    'Greenest', 25,
    'Munich → Paris → Hendaye → Lisbon · 1 transfer + 1 overnight · Wi-Fi · scenic Atlantic coast',
    '32 h', '€142', '78 kg', 78, 96, 'forest',
-   '75% lower CO₂ than the cheapest flight on this route. Matches your "prefer train" preference. Eligible for your Green Commuter Week challenge.'),
+   '75% lower CO₂ than the cheapest flight on this route. Matches your "prefer train" preference.'),
   ('mun-lis-bus', 'lisbon', '🚌',
    'Bus + Train · FlixBus + Renfe',
    null, 20,
@@ -99,12 +99,9 @@ insert into public.activities (id, destination_id, name, tag, points_reward, det
 ------------------------------------------------------------
 
 insert into public.challenges (id, emoji, name, detail, reward, duration) values
-  ('green-commuter-week', '🚲', 'Green Commuter Week',  'Don''t take a taxi or ride-share for 7 consecutive days. Use public transport, bike or your feet.', 20, 'weekly'),
-  ('c1', '🌿', 'Plant-Based Weekend',  '3 plant-based meals across Sat & Sun.',                          30, 'weekend'),
+  ('c1', '🌿', 'Plant-Based Meals',  'Choose 3 plant-based meals during your trip.',                     30, 'trip'),
   ('c2', '🚆', 'Train Over Plane',     'Book 1 train trip ≥500 km instead of a flight this month.',     50, 'monthly'),
   ('c3', '🏔️', 'Off-Peak Explorer',    'Travel to a low-season destination (Mar / Oct / Nov).',          40, 'monthly'),
-  ('c4', '♻️', 'Zero-Waste Traveler', 'Use a reusable bottle every day of your next trip.',             15, 'trip'),
-  ('c5', '🚲', 'Pedal Power 50k',     'Cover 50 km by bike in one week (Strava connect).',              25, 'weekly'),
   ('c6', '🛏️', 'Stay Green',          'Book 1 GreenKey / EU-Ecolabel hotel this month.',                20, 'monthly');
 
 
@@ -119,7 +116,6 @@ insert into public.badges (id, emoji, name, detail, unlock_criteria) values
   ('rail-romantic',      '🚆', 'Rail Romantic',      '5 train trips ≥300 km',              'Book 5 train trips of 300 km or more.'),
   ('plant-powered',      '🌱', 'Plant Powered',      '20 plant-based meals',               'Eco-checkin at 20 plant-based meals.'),
   ('green-sleeper',      '🏨', 'Green Sleeper',      '5 GreenKey stays',                   'Stay 5 nights at GreenKey or EU-Ecolabel hotels.'),
-  ('no-taxi-ninja',       null, 'No-Taxi Ninja',     'Finish Green Commuter Week',         'Complete the Green Commuter Week challenge.'),
   ('city-saver',          null, 'City Saver',        'Avoid Venice, BCN & AMS in peak',    'Travel to 3 less-visited cities instead of overtouristed peaks.'),
   ('slow-traveller',      null, 'Slow Traveller',    'Stay ≥4 nights in one place',        'Take a trip with at least 4 consecutive nights at one stay.'),
   ('hidden-gem-hunter',   null, 'Hidden-Gem Hunter', '3 destinations off the top-50 list', 'Book 3 destinations outside the EU top-50 most visited.'),

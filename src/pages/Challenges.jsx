@@ -5,6 +5,7 @@ import { supabase } from '../supabase'
 import { syncAchievements, completeChallengeManually, MANUAL_CHALLENGES } from '../achievements.js'
 
 const LOCAL_JOINED_CHALLENGE = 'ecotrail-joined-challenge'
+const HIDDEN_CHALLENGE_IDS = new Set(['green-commuter-week', 'c4', 'c5'])
 
 export default function Challenges() {
   const showToast = useToast()
@@ -30,7 +31,7 @@ export default function Challenges() {
       .from('challenges')
       .select('*')
       .order('reward', { ascending: false })
-    setChallenges(all || [])
+    setChallenges((all || []).filter((challenge) => !HIDDEN_CHALLENGE_IDS.has(challenge.id)))
 
     if (authUser) {
       const { data: mine } = await supabase
@@ -38,11 +39,16 @@ export default function Challenges() {
         .select('challenge_id, is_active, joined_at, completed_at, progress')
         .eq('user_id', authUser.id)
       const map = {}
-      ;(mine || []).forEach((uc) => { map[uc.challenge_id] = uc })
+      ;(mine || [])
+        .filter((uc) => !HIDDEN_CHALLENGE_IDS.has(uc.challenge_id))
+        .forEach((uc) => { map[uc.challenge_id] = uc })
       setJoinedMap(map)
     } else {
       const localJoined = window.localStorage.getItem(LOCAL_JOINED_CHALLENGE)
-      setJoinedMap(localJoined ? {
+      if (HIDDEN_CHALLENGE_IDS.has(localJoined)) {
+        window.localStorage.removeItem(LOCAL_JOINED_CHALLENGE)
+      }
+      setJoinedMap(localJoined && !HIDDEN_CHALLENGE_IDS.has(localJoined) ? {
         [localJoined]: {
           challenge_id: localJoined,
           is_active: true,

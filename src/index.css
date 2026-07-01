@@ -33,4 +33,11 @@
 .crowd-bar i.on { background: #3A7A43; }
 
 /* Toast / Modal animations handled via Tailwind keyframes in config */
-.bar { transition: width 1s cubic-bezier(.2, .7, .1, 1); }
+  .bar { transition: width 1s cubic-bezier(.2, .7, .1, 1); }
+  .animate-search-progress {
+    animation: search-progress 1.2s ease-in-out infinite;
+  }
+  @keyframes search-progress {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(320%); }
+  }

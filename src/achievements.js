@@ -28,26 +28,20 @@ const BADGE_DEFS = [
   { id: 'green-sleeper',      metric: 'stayCount',          target: 5,   unit: 'stays' },
   { id: 'carbon-cutter',      metric: 'co2Month',           target: 100, unit: 'kg' },
 ]
-// 'no-taxi-ninja' unlocks when the green-commuter-week challenge is completed
-// (handled in the challenge loop, not here).
-
 // Badge ids the engine can actually award. The Badges page shows ONLY these, so
 // every visible badge is earnable. The remaining seed badges (Strava km, reviews,
 // nights-per-stay, top-50 lists) stay in the DB as documented future work.
-export const EARNABLE_BADGE_IDS = [...BADGE_DEFS.map((d) => d.id), 'no-taxi-ninja']
+export const EARNABLE_BADGE_IDS = BADGE_DEFS.map((d) => d.id)
 
 // --- Challenges we can auto-track --------------------------------------------
 // type = which logged action counts; target = how many (counted since joined_at).
 const CHALLENGE_DEFS = {
-  'green-commuter-week': { type: 'transport', target: 7, unlockBadge: 'no-taxi-ninja' },
-  'c1':                  { type: 'activity',  target: 3 },
+  'c1':                  { type: 'food',      target: 3 },
   'c2':                  { type: 'transport', target: 1 },
   'c3':                  { type: 'transport', target: 1 },
   'c6':                  { type: 'stay',      target: 1 },
 }
-// Challenges that need data we don't track (reusable bottle, Strava bike) ->
-// only completable through completeChallengeManually().
-export const MANUAL_CHALLENGES = new Set(['c4', 'c5'])
+export const MANUAL_CHALLENGES = new Set()
 
 // ---------------------------------------------------------------------------
 
@@ -186,9 +180,8 @@ export async function syncAchievements(authUser, profile) {
 }
 
 /**
- * Manually complete a challenge that can't be auto-tracked (c4 reusable bottle,
- * c5 Strava bike). Awards its reward and unlocks any tied badge. Returns the
- * challenge info or null.
+ * Manually complete a challenge that can't be auto-tracked. Awards its reward
+ * and unlocks any tied badge. Returns the challenge info or null.
  */
 export async function completeChallengeManually(authUser, challengeId) {
   if (!authUser) return null

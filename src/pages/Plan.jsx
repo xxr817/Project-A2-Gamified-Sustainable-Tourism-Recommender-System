@@ -46,7 +46,7 @@ export default function Plan() {
   })
   const [activityCount, setActivityCount] = useState(12)
   const transportOptions = generatedPlan?.transport?.length ? generatedPlan.transport : TRANSPORT_OPTIONS
-  const activityDisplayCount = generatedPlan?.activityCount || 12
+  const activityDisplayCount = 10
   const activityOptions = (generatedPlan?.activities?.length ? generatedPlan.activities : DO_OPTIONS).slice(0, activityDisplayCount)
   const stayOptions = generatedPlan?.stays?.length ? generatedPlan.stays : STAY_OPTIONS
   const eatOptions = generatedPlan?.eats?.length ? generatedPlan.eats : EAT_OPTIONS
@@ -323,30 +323,6 @@ function SearchPanel({
                 </button>
               )
             })}
-          </div>
-        </div>
-        <div className="w-full xl:w-52">
-          <label className="text-xs font-semibold text-inkSoft">Activities</label>
-          <div className="mt-2 flex h-10 overflow-hidden rounded-xl border border-forest-100 bg-white">
-            <button
-              type="button"
-              onClick={() => onActivityCountChange(Math.max(12, activityCount - 2))}
-              disabled={activityCount <= 12}
-              className="grid w-10 place-items-center border-r border-forest-100 text-lg font-bold text-forest-700 hover:bg-forest-50 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-white"
-            >
-              -
-            </button>
-            <div className="grid flex-1 place-items-center font-display text-sm font-extrabold">
-              {activityCount}
-            </div>
-            <button
-              type="button"
-              onClick={() => onActivityCountChange(Math.min(20, activityCount + 2))}
-              disabled={activityCount >= 20}
-              className="grid w-10 place-items-center border-l border-forest-100 text-lg font-bold text-forest-700 hover:bg-forest-50 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-white"
-            >
-              +
-            </button>
           </div>
         </div>
       </div>

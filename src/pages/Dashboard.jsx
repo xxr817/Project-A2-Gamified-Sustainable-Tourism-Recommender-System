@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [transportModes, setTransportModes] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
   const [openTrip, setOpenTrip] = useState(null)
+  const [rank, setRank] = useState(null)
 
   useEffect(() => {
     (async () => {
@@ -55,6 +56,21 @@ export default function Dashboard() {
       .limit(4)
       .then(({ data }) => setRecentActivity(data || []))
   }, [authUser, profile?.join_date])
+
+  // Weekly rank = your position on the points_this_week leaderboard.
+  useEffect(() => {
+    if (!authUser) { setRank(null); return }
+    supabase
+      .from('profiles')
+      .select('id, points_this_week')
+      .order('points_this_week', { ascending: false })
+      .then(({ data }) => {
+        if (!data) { setRank(null); return }
+        const ranked = data.filter((p) => (p.points_this_week || 0) > 0 || p.id === authUser.id)
+        const idx = ranked.findIndex((p) => p.id === authUser.id)
+        setRank(idx >= 0 ? idx + 1 : null)
+      })
+  }, [authUser, profile?.points_this_week])
 
   const name = firstName(authUser, profile)
   const greeting = greetingFor(new Date().getHours())
@@ -119,7 +135,7 @@ export default function Dashboard() {
              note={isNewbie ? 'Plan your first trip to start' : '▲ vs last month'} valueClass="text-forest-700" />
         <Kpi dot="bg-gold-300"   label="Points · week"     big={pointsWeek > 0 ? `+${pointsWeek}` : '0'}
                valueClass="text-gold-500" />
-        <Kpi dot="bg-forest-400" label="rank"         big={profile?.city ? '—' : '—'}
+        <Kpi dot="bg-forest-400" label="rank"         big={rank ? `#${rank}` : '—'}
              note="this week" />
       </div>
 

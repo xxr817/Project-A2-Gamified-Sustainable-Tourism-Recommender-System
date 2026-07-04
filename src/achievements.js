@@ -36,7 +36,10 @@ export const EARNABLE_BADGE_IDS = BADGE_DEFS.map((d) => d.id)
 // --- Challenges we can auto-track --------------------------------------------
 // type = which logged action counts; target = how many (counted since joined_at).
 const CHALLENGE_DEFS = {
-  'c1':                  { type: 'food',      target: 3 },
+  // Added 2026-07-03 — 4 more auto-tracked challenges (one per Plan tab).
+  'c7':  { type: 'activity',  target: 2 },
+  'c9':  { type: 'transport', target: 1 },
+  'c10': { type: 'stay',      target: 1 },
   'c2':                  { type: 'transport', target: 1 },
   'c3':                  { type: 'transport', target: 1 },
   'c6':                  { type: 'stay',      target: 1 },

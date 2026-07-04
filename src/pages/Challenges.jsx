@@ -5,7 +5,35 @@ import { supabase } from '../supabase'
 import { syncAchievements, completeChallengeManually, MANUAL_CHALLENGES } from '../achievements.js'
 
 const LOCAL_JOINED_CHALLENGE = 'ecotrail-joined-challenge'
-const HIDDEN_CHALLENGE_IDS = new Set(['green-commuter-week', 'c4', 'c5'])
+const HIDDEN_CHALLENGE_IDS = new Set(['green-commuter-week', 'c4', 'c5', 'c1', 'c8'])
+
+// --- Recurring-challenge periods --------------------------------------------
+// A challenge's `duration` decides how often it can be re-earned:
+//   'weekly' / 'weekend' -> resets every ISO week (Monday 00:00, local time)
+//   'monthly'            -> resets on the 1st of each month
+//   anything else ('trip') -> one-time; never resets
+function currentPeriodStart(duration, now = new Date()) {
+  const d = String(duration || '').toLowerCase()
+  if (d === 'monthly') return new Date(now.getFullYear(), now.getMonth(), 1)
+  if (d === 'weekly' || d === 'weekend') {
+    const mondayOffset = (now.getDay() + 6) % 7 // 0 = Monday
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset)
+  }
+  return null // one-time
+}
+// Completed within the CURRENT period? (one-time challenges stay completed forever)
+function completedThisPeriod(challenge, uc) {
+  if (!uc?.completed_at) return false
+  const start = currentPeriodStart(challenge?.duration)
+  if (!start) return true
+  return new Date(uc.completed_at) >= start
+}
+function resetLabel(duration) {
+  const d = String(duration || '').toLowerCase()
+  if (d === 'monthly') return 'Resets monthly'
+  if (d === 'weekly' || d === 'weekend') return 'Resets weekly'
+  return 'One-time'
+}
 
 export default function Challenges() {
   const showToast = useToast()
@@ -65,6 +93,10 @@ export default function Challenges() {
   }, [authUser])
 
   const handleJoin = async (challenge) => {
+    if (completedThisPeriod(challenge, joinedMap[challenge.id])) {
+      showToast(`Already completed this period: ${challenge.name}`, 'forest')
+      return
+    }
     if (joinedChallenges.length > 0) {
       showToast('You can only join one challenge at a time.', 'forest')
       return
@@ -117,7 +149,16 @@ export default function Challenges() {
   }
 
   const joinedChallenges = challenges.filter((c) => joinedMap[c.id]?.is_active && !joinedMap[c.id]?.completed_at)
-  const availableChallenges = challenges.filter((c) => !joinedMap[c.id] || joinedMap[c.id]?.completed_at)
+  // Completed = done within its current period (recurring ones re-open next period).
+  const completedChallenges = challenges.filter((c) => completedThisPeriod(c, joinedMap[c.id]))
+  // Available = never joined, OR completed in a PAST period (so it can be earned again).
+  // A challenge completed THIS period is not re-offered → no farming inside a period.
+  const availableChallenges = challenges.filter((c) => {
+    const uc = joinedMap[c.id]
+    if (!uc) return true
+    if (uc.is_active && !uc.completed_at) return false
+    return !completedThisPeriod(c, uc)
+  })
 
   return (
     <div className="space-y-6">
@@ -164,6 +205,28 @@ export default function Challenges() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {completedChallenges.length > 0 && (
+        <div>
+          <h3 className="font-display text-xl font-bold">Completed</h3>
+          <p className="text-sm text-mute">Nice work. Recurring challenges re-open next week / month; one-time ones stay locked in.</p>
+          <div className="mt-3 grid grid-cols-3 gap-5">
+            {completedChallenges.map((c) => (
+              <div key={c.id} className="rounded-2xl bg-forest-50/40 border border-forest-100 p-5 opacity-80">
+                <div className="flex items-center justify-between">
+                  <div className="text-2xl">{c.emoji || '🎯'}</div>
+                  <span className="text-[11px] font-semibold text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">
+                    ✓ +{c.reward} pts
+                  </span>
+                </div>
+                <div className="font-display font-bold mt-2">{c.name}</div>
+                <p className="text-sm text-inkSoft mt-1">{c.detail}</p>
+                <div className="mt-4 text-[11px] text-forest-700 uppercase tracking-wider font-semibold">Completed ✓ · {resetLabel(c.duration)}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

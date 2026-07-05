@@ -1,6 +1,7 @@
 import json
 import os
 import ssl
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -127,6 +128,144 @@ class TripSearchRequest(BaseModel):
     return_date: str
     preferences: dict[str, bool] = Field(default_factory=dict)
     activity_count: int = Field(default=12, ge=12, le=20)
+
+
+EUROPE_COUNTRIES = {
+    "Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina",
+    "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland",
+    "France", "Germany", "Greece", "Hungary", "Iceland", "Ireland", "Italy",
+    "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta",
+    "Moldova", "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway",
+    "Poland", "Portugal", "Romania", "San Marino", "Serbia", "Slovakia",
+    "Slovenia", "Spain", "Sweden", "Switzerland", "Turkey", "United Kingdom",
+}
+
+COUNTRY_CONTINENTS = {
+    **{country: "Europe" for country in EUROPE_COUNTRIES},
+    "China": "Asia",
+    "Taiwan": "Asia",
+    "Japan": "Asia",
+    "South Korea": "Asia",
+    "Singapore": "Asia",
+    "Thailand": "Asia",
+    "Malaysia": "Asia",
+    "Indonesia": "Asia",
+    "Vietnam": "Asia",
+    "Philippines": "Asia",
+    "India": "Asia",
+    "United Arab Emirates": "Asia",
+    "Qatar": "Asia",
+    "United States": "North America",
+    "Canada": "North America",
+    "Mexico": "North America",
+    "Brazil": "South America",
+    "Argentina": "South America",
+    "Australia": "Oceania",
+    "New Zealand": "Oceania",
+    "Egypt": "Africa",
+    "South Africa": "Africa",
+    "Morocco": "Africa",
+}
+
+
+def country_from_city(value: str) -> str:
+    parts = [part.strip() for part in str(value).split(",") if part.strip()]
+    return parts[-1] if parts else ""
+
+
+def route_requires_flight_only(payload: TripSearchRequest) -> bool:
+    from_continent = COUNTRY_CONTINENTS.get(country_from_city(payload.from_city))
+    to_continent = COUNTRY_CONTINENTS.get(country_from_city(payload.to_city))
+    return bool(from_continent and to_continent and from_continent != to_continent)
+
+
+def transport_fallback(payload: TripSearchRequest) -> list[dict[str, Any]]:
+    route = f"{payload.from_city} -> {payload.to_city}"
+    origin = payload.from_city.split(",")[0].strip()
+    destination = payload.to_city.split(",")[0].strip()
+
+    flight = {
+        "id": "search-flight",
+        "emoji": "✈️",
+        "title": "Flight route" if not route_requires_flight_only(payload) else "Long-haul flight",
+        "tag": "High CO2" if not route_requires_flight_only(payload) else "Only practical route",
+        "pointsReward": 0,
+        "detail": f"{route} · fastest route, highest emissions",
+        "duration": "3-16 h",
+        "co2": "312 kg" if not route_requires_flight_only(payload) else "900 kg",
+        "score": "22 / 100" if not route_requires_flight_only(payload) else "35 / 100",
+        "tone": "rose",
+        "why": "For this distance, flight is the only practical transport option in EcoTrail." if route_requires_flight_only(payload) else "",
+        "warning": "Higher CO2 route. Consider a longer stay and low-impact local choices.",
+        "co2SavedKg": 0,
+        "routeStops": [origin, destination],
+    }
+
+    if route_requires_flight_only(payload):
+        return [flight]
+
+    return [
+        {
+            "id": "search-train",
+            "emoji": "🚆",
+            "title": "Train route",
+            "tag": "Greenest",
+            "pointsReward": 25,
+            "detail": f"{route} · rail-first route with scenic transfer stops",
+            "duration": "30-34 h",
+            "co2": "78 kg",
+            "score": "96 / 100",
+            "tone": "forest",
+            "why": "Lowest-carbon option in this demo search and best fit for slow travel.",
+            "warning": "",
+            "co2SavedKg": 234,
+            "routeStops": [origin, destination],
+        },
+        {
+            "id": "search-bus-train",
+            "emoji": "🚌",
+            "title": "Bus + train combo",
+            "tag": "Budget",
+            "pointsReward": 18,
+            "detail": f"{route} · overnight coach plus regional rail connection",
+            "duration": "26-31 h",
+            "co2": "96 kg",
+            "score": "87 / 100",
+            "tone": "moss",
+            "why": "Usually cheaper than the full rail route while keeping emissions far below flying.",
+            "warning": "",
+            "co2SavedKg": 216,
+            "routeStops": [origin, destination],
+        },
+        flight,
+    ]
+
+
+def is_transport_result(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return False
+    text = " ".join(str(item.get(key) or "") for key in ("title", "detail", "tag")).lower()
+    transport_words = [
+        "train", "rail", "ice", "tgv", "bus", "coach", "flixbus", "flight", "fly",
+        "plane", "airline", "airport", "ferry", "route", "transfer", "tram", "metro",
+    ]
+    non_transport_words = [
+        "hotel", "hostel", "stay", "suite", "inn", "lodge", "boutique", "greenkey",
+        "ecolabel", "restaurant", "vegan", "vegetarian", "museum", "garden", "tour",
+        "activity", "sight", "park", "viewpoint", "landmark", "factory",
+    ]
+    return any(word in text for word in transport_words) and not any(word in text for word in non_transport_words)
+
+
+def sanitize_transport_options(items: Any, payload: TripSearchRequest) -> list[dict[str, Any]]:
+    cleaned = [item for item in (items or []) if is_transport_result(item)]
+    if route_requires_flight_only(payload):
+        flight_like = [
+            item for item in cleaned
+            if any(word in f"{item.get('title', '')} {item.get('detail', '')}".lower() for word in ("flight", "fly", "plane", "airline", "airport"))
+        ]
+        return flight_like[:1] or transport_fallback(payload)
+    return cleaned or transport_fallback(payload)
 
 
 @app.get("/api/photo-proxy")
@@ -463,6 +602,9 @@ def call_openai_trip_search(payload: TripSearchRequest, api_key: str) -> dict[st
 
 def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str, model: str) -> dict[str, Any]:
     activity_count = payload.activity_count
+    flight_only = route_requires_flight_only(payload)
+    transport_min_items = 1 if flight_only else 3
+    transport_max_items = 1 if flight_only else 4
     schema = {
         "type": "object",
         "additionalProperties": False,
@@ -471,8 +613,8 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
             "summary": {"type": "string"},
             "transport": {
                 "type": "array",
-                "minItems": 3,
-                "maxItems": 4,
+                "minItems": transport_min_items,
+                "maxItems": transport_max_items,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -641,19 +783,39 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
         if active_preferences
         else "No extra user preferences selected. "
     )
+    transport_instruction = (
+        "This route is long-haul or cross-continent: return exactly 1 transport option, a flight. "
+        "Do not include train, bus, coach, ferry, or rail alternatives. "
+        "Make the flight option realistic, direct or one-stop as appropriate, and still include CO2, warning, and routeStops. "
+        if flight_only
+        else "Transport must include greener options and one high-emission option. "
+    )
 
     prompt = (
         "Generate sustainable trip planning options. Use realistic, route-specific demo data. "
         + preference_text +
         "Reflect active preferences in ranking, tags, warnings, detail copy, and recommended activities/stays/restaurants. "
-        "Transport must include greener options and one high-emission option. "
+        "Write all activity names in English, using the common English name for museums, landmarks, parks, and districts. "
+        "Do not use French, German, Spanish, Italian, Portuguese, or other local-language names unless there is no common English name. "
+        + transport_instruction +
         "For each transport option, calculate a plausible duration and CO2 estimate for this exact route. "
         "The detail field must name concrete legs, carriers or route segments when possible. "
         "The routeStops array must list the actual city/stop sequence, not generic text. "
         f"Use web search to choose exactly {activity_count} real activities or sights in or near the destination city, "
-        "with larger point gaps up to 10. For every activity, include a direct HTTPS imageUrl that can be "
-        "rendered in a browser, a concise imageAlt, and a photoSourceUrl. Prefer Wikimedia Commons, "
-        "official tourism pages, museum/venue pages, or other stable public pages; avoid restaurants and stock-only pages. "
+        "The activities array must contain only visitor activities, sights, museums, parks, walks, landmarks, tours, or cultural venues. "
+        "Never put hotels, hostels, stays, restaurants, cafes, transport routes, flights, or airports in the activities array. "
+        "Do not repeat the same activity under slightly different names. "
+        "Activities must be usable during the user's selected trip dates. Prefer permanent sights, parks, museums, "
+        "self-guided walks, regular markets, transit routes, or venues with stable opening patterns. "
+        "Do not recommend one-off events, festivals, exhibitions, performances, or dated tours unless their date range "
+        f"overlaps {payload.depart_date} to {payload.return_date}. "
+        "Do not put unrelated calendar dates, past dates, future dates outside the trip window, or year references in activity detail. "
+        "If a venue has uncertain hours, write a generic timing note such as 'check opening hours' instead of a specific date. "
+        "with larger point gaps up to 10. For every activity, include an image only if it clearly shows that exact named place, venue, route, or landmark. "
+        "Do not use generic city photos, skyline photos, unrelated parks, or photos of a different place. "
+        "If you cannot verify a matching image, set imageUrl and photoSourceUrl to empty strings. "
+        "When using an image, include a direct HTTPS imageUrl that can be rendered in a browser, a concise imageAlt, and a photoSourceUrl. "
+        "Prefer Wikimedia Commons, official tourism pages, museum/venue pages, or other stable public pages; avoid restaurants and stock-only pages. "
         "Return exactly 6 eco-certified stays actually in the destination city. For each stay, use web search "
         "to find the hotel's own official page or a hotel-specific Booking.com, Google Travel/Maps, or Tripadvisor page. "
         "Do not use city-wide hotel listing/category pages. Set hotelPageUrl to that hotel-specific page. "
@@ -717,13 +879,69 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
     parsed = json.loads(content)
     parsed["source"] = "openai"
     parsed["model"] = model
+    parsed["transport"] = sanitize_transport_options(parsed.get("transport"), payload)
     enrich_plan_images(parsed, payload.to_city)
     return parsed
 
 
 def enrich_plan_images(plan: dict[str, Any], destination: str) -> None:
+    sanitize_activities(plan)
+    sanitize_activity_details(plan)
     enrich_activity_images(plan, destination)
     enrich_hotel_images_from_sources(plan)
+
+
+def sanitize_activities(plan: dict[str, Any]) -> None:
+    activities = plan.get("activities")
+    if not isinstance(activities, list):
+        plan["activities"] = []
+        return
+
+    cleaned: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    for activity in activities:
+        if not is_activity_result(activity):
+            continue
+        name_key = normalize_text(str(activity.get("name") or "")).strip()
+        if not name_key or name_key in seen_names:
+            continue
+        seen_names.add(name_key)
+        cleaned.append(activity)
+    plan["activities"] = cleaned
+
+
+def is_activity_result(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return False
+    name = str(item.get("name") or "").strip()
+    if not name:
+        return False
+    text = " ".join(str(item.get(key) or "") for key in ("name", "detail", "tag")).lower()
+    blocked_words = [
+        "hotel", "hostel", "stay", "suite", "inn", "lodge", "resort", "room",
+        "greenkey", "eco-certified stay", "ecolabel hotel", "restaurant", "bistro",
+        "cafe", "vegan kitchen", "vegetarian restaurant", "flight", "airport",
+        "airline", "train route", "bus route",
+    ]
+    return not any(word in text for word in blocked_words)
+
+
+def sanitize_activity_details(plan: dict[str, Any]) -> None:
+    activities = plan.get("activities")
+    if not isinstance(activities, list):
+        return
+
+    date_pattern = re.compile(
+        r"\b(?:20\d{2}|Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
+        r"Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b",
+        re.IGNORECASE,
+    )
+    for activity in activities:
+        if not isinstance(activity, dict):
+            continue
+        detail = str(activity.get("detail") or "")
+        if date_pattern.search(detail):
+            activity["detail"] = "Available during normal opening hours · check opening hours"
 
 
 def enrich_activity_images(plan: dict[str, Any], destination: str) -> None:
@@ -732,11 +950,12 @@ def enrich_activity_images(plan: dict[str, Any], destination: str) -> None:
         return
 
     destination_name = destination.split(",")[0].strip()
+
     for activity in activities:
         if not isinstance(activity, dict):
             continue
         name = str(activity.get("name") or "")
-        image = fetch_wikimedia_image(f"{name} {destination_name}") or fetch_wikimedia_image(name)
+        image = fetch_activity_image(name, destination_name)
         if image:
             activity["imageUrl"] = image["imageUrl"]
             activity["imageAlt"] = image["imageAlt"]
@@ -745,6 +964,69 @@ def enrich_activity_images(plan: dict[str, Any], destination: str) -> None:
             activity["imageUrl"] = ""
             activity["imageAlt"] = activity.get("name", "Activity photo")
             activity["photoSourceUrl"] = ""
+
+
+def fetch_activity_image(activity_name: str, destination_name: str) -> dict[str, str] | None:
+    english_name = english_activity_name(activity_name)
+    queries = [
+        f"{english_name} {destination_name}",
+        english_name,
+        f"{activity_name} {destination_name}",
+        activity_name,
+    ]
+
+    for query in dict.fromkeys(queries):
+        image = fetch_wikimedia_image(query)
+        if image and (
+            image_matches_activity(activity_name, image.get("imageAlt", "")) or
+            image_matches_activity(english_name, image.get("imageAlt", ""))
+        ):
+            return image
+    return None
+
+
+def english_activity_name(activity_name: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalize_text(activity_name)).strip()
+    replacements = {
+        "musee d orsay": "Orsay Museum",
+        "musee du louvre": "Louvre Museum",
+        "musee de l orangerie": "Orangerie Museum",
+        "centre pompidou": "Pompidou Centre",
+        "sacre coeur": "Sacred Heart Basilica",
+        "sagrada familia": "Basilica of the Sagrada Familia",
+        "casa batllo": "Casa Batllo",
+        "palacio real": "Royal Palace",
+        "palazzo vecchio": "Old Palace Florence",
+        "ponte vecchio": "Old Bridge Florence",
+        "torre de belem": "Belem Tower",
+        "mosteiro dos jeronimos": "Jeronimos Monastery",
+        "praca do comercio": "Commerce Square Lisbon",
+    }
+    for source, target in replacements.items():
+        if source in normalized:
+            return target
+    return activity_name
+
+
+def image_matches_activity(activity_name: str, image_title: str) -> bool:
+    stop_words = {
+        "the", "and", "with", "from", "near", "route", "walk", "pause", "visit",
+        "by", "at", "in", "of", "de", "da", "do", "das", "dos", "lisbon",
+        "portugal", "free", "early", "off", "peak", "local", "quiet",
+    }
+    activity_tokens = {
+        token for token in re.findall(r"[a-z0-9]+", normalize_text(activity_name))
+        if len(token) >= 4 and token not in stop_words
+    }
+    title_tokens = set(re.findall(r"[a-z0-9]+", normalize_text(image_title)))
+    if not activity_tokens:
+        return False
+    compact_title = "".join(title_tokens)
+    return bool(activity_tokens & title_tokens) or any(token in compact_title for token in activity_tokens)
+
+
+def normalize_text(value: str) -> str:
+    return unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii").lower()
 
 
 def enrich_stay_images(plan: dict[str, Any], destination: str) -> None:
@@ -972,6 +1254,74 @@ def with_empty_hotel_media(stay: dict[str, Any]) -> dict[str, Any]:
 def build_demo_plan(payload: TripSearchRequest, source: str) -> dict[str, Any]:
     route = f"{payload.from_city} -> {payload.to_city}"
     destination = payload.to_city.split(",")[0].strip() or payload.to_city
+    flight_only = route_requires_flight_only(payload)
+    transport_options = [
+        {
+            "id": "search-train",
+            "emoji": "🚆",
+            "title": "Train route",
+            "tag": "Greenest",
+            "pointsReward": 25,
+            "detail": f"{route} · rail-first route with scenic transfer stops",
+            "duration": "30-34 h",
+            "co2": "78 kg",
+            "score": "96 / 100",
+            "tone": "forest",
+            "why": "Lowest-carbon option in this demo search and best fit for slow travel.",
+            "warning": "",
+            "co2SavedKg": 234,
+            "routeStops": ["Munich", "Paris", "Hendaye", "Lisbon"],
+        },
+        {
+            "id": "search-bus-train",
+            "emoji": "🚌",
+            "title": "Bus + train combo",
+            "tag": "Budget",
+            "pointsReward": 18,
+            "detail": f"{route} · overnight coach plus regional rail connection",
+            "duration": "26-31 h",
+            "co2": "96 kg",
+            "score": "87 / 100",
+            "tone": "moss",
+            "why": "Usually cheaper than the full rail route while keeping emissions far below flying.",
+            "warning": "",
+            "co2SavedKg": 216,
+            "routeStops": ["Munich", "Lyon", "Barcelona", "Madrid", "Lisbon"],
+        },
+        {
+            "id": "search-flight",
+            "emoji": "✈️",
+            "title": "Direct flight",
+            "tag": "High CO2",
+            "pointsReward": 0,
+            "detail": f"{route} · fastest route, highest emissions",
+            "duration": "3-5 h",
+            "co2": "312 kg",
+            "score": "22 / 100",
+            "tone": "rose",
+            "why": "",
+            "warning": "Fast, but much higher CO2 than rail or bus options.",
+            "co2SavedKg": 0,
+            "routeStops": [payload.from_city.split(",")[0].strip(), destination],
+        },
+    ]
+    if flight_only:
+        transport_options = [{
+            "id": "search-flight",
+            "emoji": "✈️",
+            "title": "Long-haul flight",
+            "tag": "Only practical route",
+            "pointsReward": 0,
+            "detail": f"{route} · long-distance route where rail or bus is not practical",
+            "duration": "8-16 h",
+            "co2": "900 kg",
+            "score": "35 / 100",
+            "tone": "rose",
+            "why": "For this distance, flight is the only practical transport option in EcoTrail.",
+            "warning": "Higher CO2 route. Consider longer stays and low-impact local choices to balance the trip.",
+            "co2SavedKg": 0,
+            "routeStops": [payload.from_city.split(",")[0].strip(), destination],
+        }]
 
     plan = {
         "source": source,
@@ -979,56 +1329,7 @@ def build_demo_plan(payload: TripSearchRequest, source: str) -> dict[str, Any]:
             f"Demo search for {route}: greener routes are ranked first, "
             f"then local low-crowd activities in {destination}."
         ),
-        "transport": [
-            {
-                "id": "search-train",
-                "emoji": "🚆",
-                "title": "Train route",
-                "tag": "Greenest",
-                "pointsReward": 25,
-                "detail": f"{route} · rail-first route with scenic transfer stops",
-                "duration": "30-34 h",
-                "co2": "78 kg",
-                "score": "96 / 100",
-                "tone": "forest",
-                "why": "Lowest-carbon option in this demo search and best fit for slow travel.",
-                "warning": "",
-                "co2SavedKg": 234,
-                "routeStops": ["Munich", "Paris", "Hendaye", "Lisbon"],
-            },
-            {
-                "id": "search-bus-train",
-                "emoji": "🚌",
-                "title": "Bus + train combo",
-                "tag": "Budget",
-                "pointsReward": 18,
-                "detail": f"{route} · overnight coach plus regional rail connection",
-                "duration": "26-31 h",
-                "co2": "96 kg",
-                "score": "87 / 100",
-                "tone": "moss",
-                "why": "Usually cheaper than the full rail route while keeping emissions far below flying.",
-                "warning": "",
-                "co2SavedKg": 216,
-                "routeStops": ["Munich", "Lyon", "Barcelona", "Madrid", "Lisbon"],
-            },
-            {
-                "id": "search-flight",
-                "emoji": "✈️",
-                "title": "Direct flight",
-                "tag": "High CO2",
-                "pointsReward": 0,
-                "detail": f"{route} · fastest route, highest emissions",
-                "duration": "3-5 h",
-                "co2": "312 kg",
-                "score": "22 / 100",
-                "tone": "rose",
-                "why": "",
-                "warning": "Fast, but much higher CO2 than rail or bus options.",
-                "co2SavedKg": 0,
-                "routeStops": ["Munich", "Lisbon"],
-            },
-        ],
+        "transport": transport_options,
         "activities": [
             {
                 "id": "search-green-walk",
@@ -1188,6 +1489,7 @@ def build_demo_plan(payload: TripSearchRequest, source: str) -> dict[str, Any]:
             {"id": "demo-eat-6", "emoji": "🍛", "name": f"Jardim Veg", "district": f"{destination} garden district", "tags": ["Vegan", "Hidden gem"], "price": "€€", "score": 89, "detail": "Quiet dinner spot with plant-based local specials.", "restaurantPageUrl": ""},
         ],
     }
+    plan["transport"] = sanitize_transport_options(plan.get("transport"), payload)
     normalize_demo_activity_count(plan, destination, payload.activity_count)
     enrich_plan_images(plan, payload.to_city)
     return plan

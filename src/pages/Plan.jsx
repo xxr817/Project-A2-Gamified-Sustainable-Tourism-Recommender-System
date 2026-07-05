@@ -25,6 +25,7 @@ const SEARCH_PREFERENCES = [
   { id: 'budget', label: 'Budget-friendly first' },
   { id: 'accessibility', label: 'Accessibility mode' },
 ]
+const ACTIVITY_DISPLAY_COUNT = 12
 
 export default function Plan() {
   const showToast = useToast()
@@ -44,17 +45,14 @@ export default function Plan() {
     budget: false,
     accessibility: false,
   })
-  const [activityCount, setActivityCount] = useState(12)
   const transportOptions = generatedPlan?.transport?.length ? generatedPlan.transport : TRANSPORT_OPTIONS
-  const activityDisplayCount = 10
-  const activityOptions = (generatedPlan?.activities?.length ? generatedPlan.activities : DO_OPTIONS).slice(0, activityDisplayCount)
+  const activityOptions = (generatedPlan?.activities?.length ? generatedPlan.activities : DO_OPTIONS).slice(0, ACTIVITY_DISPLAY_COUNT)
   const stayOptions = generatedPlan?.stays?.length ? generatedPlan.stays : STAY_OPTIONS
   const eatOptions = generatedPlan?.eats?.length ? generatedPlan.eats : EAT_OPTIONS
 
   const handleSearch = async () => {
     setSearchLoading(true)
     setSearchError('')
-    const requestedActivityCount = activityCount
 
     try {
       const response = await fetch(`${API_BASE}/api/plan-trip`, {
@@ -66,7 +64,7 @@ export default function Plan() {
           depart_date: formatDateForDb(departDate),
           return_date: formatDateForDb(returnDate),
           preferences: searchPreferences,
-          activity_count: activityCount,
+          activity_count: ACTIVITY_DISPLAY_COUNT,
         }),
       })
 
@@ -77,7 +75,6 @@ export default function Plan() {
       const data = await response.json()
       setGeneratedPlan({
         ...normalizeGeneratedPlan(data),
-        activityCount: requestedActivityCount,
       })
       setSelectedTransport(null)
       setTab('transport')
@@ -104,8 +101,6 @@ export default function Plan() {
         onReturnDateChange={setReturnDate}
         preferences={searchPreferences}
         onPreferenceToggle={(id) => setSearchPreferences((current) => ({ ...current, [id]: !current[id] }))}
-        activityCount={activityCount}
-        onActivityCountChange={setActivityCount}
         onSearch={handleSearch}
         searchLoading={searchLoading}
         error={searchError}
@@ -126,7 +121,7 @@ export default function Plan() {
         )}
         {tab === 'stay'      && <StayPanel stays={stayOptions} />}
         {tab === 'eat'       && <EatPanel eats={eatOptions} />}
-        {tab === 'do'        && <DoPanel activities={activityOptions} limit={activityDisplayCount} />}
+        {tab === 'do'        && <DoPanel activities={activityOptions} />}
       </div>
     </div>
   )
@@ -134,7 +129,7 @@ export default function Plan() {
 
 function normalizeGeneratedPlan(data) {
   const transport = Array.isArray(data?.transport)
-    ? data.transport.map((item, index) => ({
+    ? data.transport.filter(isTransportResult).map((item, index) => ({
         id: item.id || `search-transport-${index}`,
         emoji: item.emoji || '🚆',
         title: item.title || 'Suggested route',
@@ -154,7 +149,7 @@ function normalizeGeneratedPlan(data) {
     : []
 
   const activities = Array.isArray(data?.activities)
-    ? data.activities.map((item, index) => ({
+    ? fillActivities(dedupeByName(data.activities.filter(isActivityResult))).map((item, index) => ({
         id: item.id || `search-activity-${index}`,
         name: item.name || 'Suggested activity',
         tag: item.tag || 'Eco pick',
@@ -210,6 +205,57 @@ function normalizeGeneratedPlan(data) {
   }
 }
 
+function isTransportResult(item) {
+  const text = `${item?.title || ''} ${item?.detail || ''} ${item?.tag || ''}`.toLowerCase()
+  const transportWords = [
+    'train', 'rail', 'ice', 'tgv', 'bus', 'coach', 'flixbus', 'flight', 'fly',
+    'plane', 'airline', 'airport', 'ferry', 'route', 'transfer', 'tram', 'metro',
+  ]
+  const nonTransportWords = [
+    'hotel', 'hostel', 'stay', 'suite', 'inn', 'lodge', 'boutique', 'greenkey',
+    'ecolabel', 'restaurant', 'vegan', 'vegetarian', 'museum', 'garden', 'tour',
+    'activity', 'sight', 'park',
+  ]
+
+  return transportWords.some((word) => text.includes(word)) &&
+    !nonTransportWords.some((word) => text.includes(word))
+}
+
+function isActivityResult(item) {
+  const text = `${item?.name || ''} ${item?.detail || ''} ${item?.tag || ''}`.toLowerCase()
+  const blockedWords = [
+    'hotel', 'hostel', 'stay', 'suite', 'inn', 'lodge', 'resort', 'room', 'greenkey',
+    'eco-certified stay', 'ecolabel hotel', 'restaurant', 'bistro', 'cafe', 'vegan kitchen',
+    'vegetarian restaurant', 'flight', 'airport', 'airline',
+  ]
+  return Boolean(item?.name) && !blockedWords.some((word) => text.includes(word))
+}
+
+function dedupeByName(items) {
+  const seen = new Set()
+  return items.filter((item) => {
+    const key = String(item?.name || item?.title || '').trim().toLowerCase()
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function fillActivities(items) {
+  const filled = [...items]
+  const seen = new Set(filled.map((item) => String(item?.name || '').trim().toLowerCase()).filter(Boolean))
+
+  for (const fallback of DO_OPTIONS) {
+    if (filled.length >= ACTIVITY_DISPLAY_COUNT) break
+    const key = String(fallback.name || '').trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    filled.push(fallback)
+  }
+
+  return filled.slice(0, ACTIVITY_DISPLAY_COUNT)
+}
+
 function SearchPanel({
   fromCity,
   toCity,
@@ -221,8 +267,6 @@ function SearchPanel({
   onReturnDateChange,
   preferences,
   onPreferenceToggle,
-  activityCount,
-  onActivityCountChange,
   onSearch,
   searchLoading,
   error,

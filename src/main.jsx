@@ -5,8 +5,8 @@ import App from './App.jsx'
 import { AuthProvider } from './AuthContext.jsx'
 import './index.css'
 
-// AuthProvider 必须包在 BrowserRouter 里面、App 外面 —
-// 这样所有页面 (包括路由切换时新挂载的页面) 都能用 useAuth() 拿到用户状态。
+// AuthProvider must wrap App inside BrowserRouter so every routed page,
+// including newly mounted pages after navigation, can read the auth state.
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>

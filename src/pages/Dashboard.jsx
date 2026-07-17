@@ -146,7 +146,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-display font-bold text-lg">Which transport to pick?</h3>
-              <p className="text-xs text-mute mt-1">CO₂ per passenger-km, Europe average — source: European Environment
+              <p className="text-xs text-mute mt-1">CO₂ per passenger-km. Europe average. Source: European Environment
                 Agency, 2023.</p>
             </div>
             <div className="flex items-center gap-2 text-xs">
@@ -182,7 +182,7 @@ export default function Dashboard() {
           <h3 className="font-display font-bold text-lg">Recent activity</h3>
           {recentActivity.length === 0 ? (
               <div className="mt-4 text-sm text-mute py-4">
-                No activity yet — your eco-actions will show up here once you start planning trips and joining
+                No activity yet. Your choices will appear here after you start planning trips and joining
                 challenges.
               </div>
           ) : (

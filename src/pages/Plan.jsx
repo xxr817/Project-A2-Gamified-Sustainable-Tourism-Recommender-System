@@ -641,7 +641,6 @@ function Field({ label, defaultValue, value, onChange, citySearch = false, class
   )
 }
 
-/* ─── TRANSPORT ─────────────────────────────────────────────────────── */
 function TransportPanel({ fromCity, toCity, departDate, returnDate, transportOptions, selectedTransport, onTransportSelect }) {
   const showToast = useToast()
   const { addPoints } = useUser()
@@ -1036,7 +1035,6 @@ function StayPanel({ stays = STAY_OPTIONS }) {
   )
 }
 
-/* ─── EAT ───────────────────────────────────────────────────────────── */
 function EatPanel({ eats = EAT_OPTIONS }) {
   const showToast = useToast()
   const { addPoints } = useUser()
@@ -1122,7 +1120,6 @@ function EatPanel({ eats = EAT_OPTIONS }) {
   )
 }
 
-/* ─── DO ────────────────────────────────────────────────────────────── */
 function DoPanel({ activities = DO_OPTIONS, limit = 12 }) {
   const showToast = useToast()
   const { addPoints } = useUser()
@@ -1235,7 +1232,7 @@ function ActivityPhoto({ activity }) {
       {showImage && <div className="absolute inset-0 bg-gradient-to-t from-forest-900/40 via-transparent to-black/10" />}
       {!showImage && (
         <div className="absolute inset-0 grid place-items-center px-4 text-center text-sm font-semibold text-white/90">
-          {imageFailed ? 'Photo unavailable' : 'Search again to load photos'}
+          Photo unavailable
         </div>
       )}
       <span

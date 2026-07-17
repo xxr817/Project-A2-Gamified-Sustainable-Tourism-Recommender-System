@@ -129,18 +129,18 @@ export default function Signup() {
       <div className="gradient-forest text-white p-12 flex flex-col justify-between order-1">
         <Logo />
         <div>
-          <h2 className="font-display text-4xl font-extrabold leading-tight">Start your green journey.</h2>
+          <h2 className="font-display text-4xl font-extrabold leading-tight">Create your EcoTrail account.</h2>
           <p className="mt-4 text-moss-100 max-w-md">
-            Earn your first badge in 5 minutes — pick a sustainable transport for your next trip and we'll do the math.
+            Plan a trip, compare transport, and earn points for lower carbon choices.
           </p>
           <ul className="mt-6 text-moss-100 space-y-2 text-sm">
-            <li>✓ Personalised eco-recommendations</li>
-            <li>✓ Weekly challenges with your city</li>
-            <li>✓ Verified CO₂ data from Climatiq &amp; EEA</li>
+            <li>✓ Trip suggestions based on your choices</li>
+            <li>✓ Challenges, badges, and points</li>
+            <li>✓ Carbon estimates for transport options</li>
           </ul>
         </div>
         <div className="text-xs text-moss-200">
-          Data sources: OpenStreetMap · Booking.com · Climatiq · Eurostat · GreenKey
+          TUM Lab Course · Summer Semester 2026
         </div>
       </div>
     </div>

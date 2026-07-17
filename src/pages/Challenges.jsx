@@ -7,11 +7,7 @@ import { syncAchievements, completeChallengeManually, MANUAL_CHALLENGES } from '
 const LOCAL_JOINED_CHALLENGE = 'ecotrail-joined-challenge'
 const HIDDEN_CHALLENGE_IDS = new Set(['green-commuter-week', 'c4', 'c5', 'c1', 'c8'])
 
-// --- Recurring-challenge periods --------------------------------------------
-// A challenge's `duration` decides how often it can be re-earned:
-//   'weekly' / 'weekend' -> resets every ISO week (Monday 00:00, local time)
-//   'monthly'            -> resets on the 1st of each month
-//   anything else ('trip') -> one-time; never resets
+// Weekly challenges start on Monday. Monthly challenges start on day one.
 function currentPeriodStart(duration, now = new Date()) {
   const d = String(duration || '').toLowerCase()
   if (d === 'monthly') return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -21,7 +17,6 @@ function currentPeriodStart(duration, now = new Date()) {
   }
   return null // one-time
 }
-// Completed within the CURRENT period? (one-time challenges stay completed forever)
 function completedThisPeriod(challenge, uc) {
   if (!uc?.completed_at) return false
   const start = currentPeriodStart(challenge?.duration)
@@ -137,8 +132,7 @@ export default function Challenges() {
     setJoining(null)
   }
 
-  // For challenges that can't be auto-tracked (reusable bottle, Strava bike):
-  // let the user mark them done, which awards the reward honestly.
+  // Manual completion is used when the app cannot track the required action.
   const handleManualComplete = async (challenge) => {
     const res = await completeChallengeManually(authUser, challenge.id)
     if (res) {
@@ -149,10 +143,8 @@ export default function Challenges() {
   }
 
   const joinedChallenges = challenges.filter((c) => joinedMap[c.id]?.is_active && !joinedMap[c.id]?.completed_at)
-  // Completed = done within its current period (recurring ones re-open next period).
   const completedChallenges = challenges.filter((c) => completedThisPeriod(c, joinedMap[c.id]))
-  // Available = never joined, OR completed in a PAST period (so it can be earned again).
-  // A challenge completed THIS period is not re-offered → no farming inside a period.
+  // Recurring challenges return after their current period ends.
   const availableChallenges = challenges.filter((c) => {
     const uc = joinedMap[c.id]
     if (!uc) return true
@@ -211,7 +203,7 @@ export default function Challenges() {
       {completedChallenges.length > 0 && (
         <div>
           <h3 className="font-display text-xl font-bold">Completed</h3>
-          <p className="text-sm text-mute">Nice work. Recurring challenges re-open next week / month; one-time ones stay locked in.</p>
+          <p className="text-sm text-mute">Weekly and monthly challenges return in the next period. One time challenges stay complete.</p>
           <div className="mt-3 grid grid-cols-3 gap-5">
             {completedChallenges.map((c) => (
               <div key={c.id} className="rounded-2xl bg-forest-50/40 border border-forest-100 p-5 opacity-80">
@@ -241,7 +233,7 @@ function JoinedCard({ challenges, joinedMap, onManualComplete }) {
           <div className="text-xs uppercase tracking-widest text-mute">Joined challenges</div>
           <h2 className="font-display text-2xl font-extrabold mt-1">Your active challenge{challenges.length > 1 ? 's' : ''}</h2>
           <p className="text-sm text-inkSoft mt-2 max-w-lg">
-            Keep these active while planning trips to earn the completion rewards.
+            Complete the goal to earn its points.
           </p>
         </div>
         <div className="rounded-full bg-forest-50 border border-forest-100 px-3 py-1 text-xs font-semibold text-forest-700">
@@ -276,7 +268,9 @@ function JoinedCard({ challenges, joinedMap, onManualComplete }) {
                           <div className="h-1.5 rounded-full bg-white">
                             <div className="h-1.5 rounded-full gradient-forest" style={{ width: `${pctVal}%` }} />
                           </div>
-                          <div className="text-[10px] text-mute mt-1">{p.count}/{p.target} · {pctVal}%</div>
+                          <div className="text-[10px] text-mute mt-1">
+                            {p.count}/{p.target}{p.unit ? ` ${p.unit}` : ''} · {pctVal}%
+                          </div>
                         </div>
                       )}
                       {MANUAL_CHALLENGES.has(challenge.id) && (
@@ -308,9 +302,9 @@ function NoActiveCard() {
   return (
     <div className="rounded-3xl bg-white border border-forest-100 p-7 shadow-card">
       <div className="text-xs uppercase tracking-widest text-mute">No active challenge</div>
-      <h2 className="font-display text-2xl font-extrabold mt-1">Pick one below to start</h2>
+      <h2 className="font-display text-2xl font-extrabold mt-1">Choose a challenge</h2>
       <p className="text-sm text-inkSoft mt-2 max-w-lg">
-        Join any available challenge to multiply your weekly points. You can only have one active at a time.
+        You can have one active challenge at a time.
       </p>
     </div>
   )

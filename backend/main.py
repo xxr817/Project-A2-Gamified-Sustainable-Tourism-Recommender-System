@@ -6,12 +6,15 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import re
+import time
 from typing import Any
 
 import certifi
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+from .fallback_data import EXTRA_ACTIVITY_TEMPLATES, demo_eats, demo_stays
 
 
 app = FastAPI(title="EcoTrail API")
@@ -39,6 +42,7 @@ DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 MAX_PROXY_IMAGE_BYTES = 6 * 1024 * 1024
 WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
 IMAGE_SEARCH_CACHE: dict[str, dict[str, str] | None] = {}
+IMAGE_URL_VALIDATION_CACHE: dict[str, bool] = {}
 CITY_IMAGE_FALLBACKS = {
     "lisbon": {
         "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Lisbon_Torre_de_Bel%C3%A9m_BW_2018-10-03_16-33-21.jpg/960px-Lisbon_Torre_de_Bel%C3%A9m_BW_2018-10-03_16-33-21.jpg",
@@ -591,17 +595,21 @@ def call_openai_trip_search(payload: TripSearchRequest, api_key: str) -> dict[st
     last_error = None
 
     for model in model_candidates:
-        try:
-            return call_openai_trip_search_with_model(payload, api_key, model)
-        except Exception as exc:
-            last_error = exc
-            print(f"OpenAI model {model} failed: {exc}")
+        for attempt in range(2):
+            try:
+                return call_openai_trip_search_with_model(payload, api_key, model)
+            except Exception as exc:
+                last_error = exc
+                print(f"OpenAI model {model} attempt {attempt + 1} failed: {exc}")
+                if attempt == 0:
+                    time.sleep(1.5)
 
     raise RuntimeError(last_error or "OpenAI search failed")
 
 
 def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str, model: str) -> dict[str, Any]:
-    activity_count = payload.activity_count
+    requested_activity_count = payload.activity_count
+    activity_count = min(20, requested_activity_count + 4)
     flight_only = route_requires_flight_only(payload)
     transport_min_items = 1 if flight_only else 3
     transport_max_items = 1 if flight_only else 4
@@ -802,6 +810,7 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
         "The detail field must name concrete legs, carriers or route segments when possible. "
         "The routeStops array must list the actual city/stop sequence, not generic text. "
         f"Use web search to choose exactly {activity_count} real activities or sights in or near the destination city, "
+        f"Every activity must be located in or near {payload.to_city}; never include activities from the origin city {payload.from_city}. "
         "The activities array must contain only visitor activities, sights, museums, parks, walks, landmarks, tours, or cultural venues. "
         "Never put hotels, hostels, stays, restaurants, cafes, transport routes, flights, or airports in the activities array. "
         "Do not repeat the same activity under slightly different names. "
@@ -880,8 +889,84 @@ def call_openai_trip_search_with_model(payload: TripSearchRequest, api_key: str,
     parsed["source"] = "openai"
     parsed["model"] = model
     parsed["transport"] = sanitize_transport_options(parsed.get("transport"), payload)
+    sanitize_activities(parsed)
+    if len(parsed["activities"]) < requested_activity_count:
+        missing = requested_activity_count - len(parsed["activities"])
+        try:
+            supplement = call_openai_activity_supplement(
+                payload,
+                api_key,
+                model,
+                [item["name"] for item in parsed["activities"]],
+                min(20, missing + 3),
+                schema["properties"]["activities"]["items"],
+            )
+            parsed["activities"].extend(supplement)
+            sanitize_activities(parsed)
+        except Exception as exc:
+            print(f"OpenAI activity supplement failed: {exc}")
+    parsed["activities"] = parsed["activities"][:requested_activity_count]
     enrich_plan_images(parsed, payload.to_city)
     return parsed
+
+
+def call_openai_activity_supplement(
+    payload: TripSearchRequest,
+    api_key: str,
+    model: str,
+    existing_names: list[str],
+    candidate_count: int,
+    activity_item_schema: dict[str, Any],
+) -> list[dict[str, Any]]:
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["activities"],
+        "properties": {
+            "activities": {
+                "type": "array",
+                "minItems": candidate_count,
+                "maxItems": candidate_count,
+                "items": activity_item_schema,
+            }
+        },
+    }
+    prompt = (
+        f"Find exactly {candidate_count} additional real visitor activities, sights, museums, parks, walks, "
+        f"landmarks, tours, or cultural venues in or near {payload.to_city}. "
+        f"They must be usable from {payload.depart_date} to {payload.return_date}. "
+        f"Do not return hotels, restaurants, cafes, transport, airports, or any of these existing activities: "
+        f"{', '.join(existing_names)}. Use distinct English names and verified place-specific URLs when available."
+    )
+    body = {
+        "model": model,
+        "max_output_tokens": 5000,
+        "tools": [{"type": "web_search"}],
+        "input": [
+            {"role": "system", "content": "Return only JSON matching the schema."},
+            {"role": "user", "content": prompt},
+        ],
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "ecotrail_activity_supplement",
+                "schema": schema,
+                "strict": True,
+            }
+        },
+    }
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    with urllib.request.urlopen(request, timeout=90, context=ssl_context) as response:
+        result = json.loads(response.read().decode("utf-8"))
+    parsed = json.loads(extract_response_text(result))
+    activities = parsed.get("activities")
+    return activities if isinstance(activities, list) else []
 
 
 def enrich_plan_images(plan: dict[str, Any], destination: str) -> None:
@@ -916,7 +1001,7 @@ def is_activity_result(item: Any) -> bool:
     name = str(item.get("name") or "").strip()
     if not name:
         return False
-    text = " ".join(str(item.get(key) or "") for key in ("name", "detail", "tag")).lower()
+    text = " ".join(str(item.get(key) or "") for key in ("name", "tag")).lower()
     blocked_words = [
         "hotel", "hostel", "stay", "suite", "inn", "lodge", "resort", "room",
         "greenkey", "eco-certified stay", "ecolabel hotel", "restaurant", "bistro",
@@ -955,7 +1040,31 @@ def enrich_activity_images(plan: dict[str, Any], destination: str) -> None:
         if not isinstance(activity, dict):
             continue
         name = str(activity.get("name") or "")
-        image = fetch_activity_image(name, destination_name)
+        existing_image_url = str(activity.get("imageUrl") or "").strip()
+        photo_source_url = str(activity.get("photoSourceUrl") or "").strip()
+
+        # Keep a place-specific direct image supplied by the search result. Only
+        # replace it when it is missing or is actually an HTML page URL.
+        if is_loadable_direct_image_url(existing_image_url):
+            activity["imageUrl"] = existing_image_url
+            activity["imageAlt"] = activity.get("imageAlt") or name
+            continue
+
+        preview_image = ""
+        for page_url in dict.fromkeys([photo_source_url, existing_image_url]):
+            preview_image = fetch_page_preview_image(page_url)
+            if preview_image:
+                break
+
+        image = (
+            {
+                "imageUrl": preview_image,
+                "imageAlt": activity.get("imageAlt") or name,
+                "photoSourceUrl": photo_source_url or existing_image_url,
+            }
+            if preview_image
+            else fetch_activity_image(name, destination_name)
+        )
         if image:
             activity["imageUrl"] = image["imageUrl"]
             activity["imageAlt"] = image["imageAlt"]
@@ -1142,6 +1251,33 @@ def is_probably_direct_image_url(url: str) -> bool:
     ))
 
 
+def is_loadable_direct_image_url(url: str) -> bool:
+    if not is_probably_direct_image_url(url):
+        return False
+    if url in IMAGE_URL_VALIDATION_CACHE:
+        return IMAGE_URL_VALIDATION_CACHE[url]
+
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 EcoTrail activity media validation",
+            "Accept": "image/avif,image/webp,image/png,image/jpeg,image/*",
+            "Range": "bytes=0-1023",
+        },
+    )
+    try:
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        with urllib.request.urlopen(request, timeout=8, context=ssl_context) as response:
+            is_image = response.headers.get("Content-Type", "").lower().startswith("image/")
+            if is_image:
+                response.read(32)
+    except Exception:
+        is_image = False
+
+    IMAGE_URL_VALIDATION_CACHE[url] = is_image
+    return is_image
+
+
 def fetch_page_preview_image(page_url: str) -> str:
     parsed = urllib.parse.urlparse(page_url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -1239,16 +1375,6 @@ def extract_response_text(result: dict[str, Any]) -> str:
                 return item["text"]
 
     raise RuntimeError("OpenAI response did not include JSON text")
-
-
-def with_empty_hotel_media(stay: dict[str, Any]) -> dict[str, Any]:
-    stay.update({
-        "imageUrl": "",
-        "imageAlt": stay.get("name", "Hotel photo"),
-        "photoSourceUrl": "",
-        "hotelPageUrl": "",
-    })
-    return stay
 
 
 def build_demo_plan(payload: TripSearchRequest, source: str) -> dict[str, Any]:
@@ -1472,22 +1598,8 @@ def build_demo_plan(payload: TripSearchRequest, source: str) -> dict[str, Any]:
                 "photoSourceUrl": "https://unsplash.com/",
             },
         ],
-        "stays": [
-            with_empty_hotel_media({"id": "demo-stay-1", "name": f"{destination} GreenKey Boutique", "cert": "🌿 GreenKey", "district": f"Central {destination} · 100% renewable energy", "price": "€168", "score": 93}),
-            with_empty_hotel_media({"id": "demo-stay-2", "name": f"{destination} EU Ecolabel Hotel", "cert": "🌿 EU Ecolabel", "district": f"{destination} old town · zero-waste kitchen", "price": "€142", "score": 90}),
-            with_empty_hotel_media({"id": "demo-stay-3", "name": f"Casa Verde {destination}", "cert": "🌿 Biosphere", "district": f"{destination} · local-owned · plant-based breakfast", "price": "€118", "score": 86}),
-            with_empty_hotel_media({"id": "demo-stay-4", "name": f"{destination} Solar Garden Inn", "cert": "🌿 GreenKey", "district": f"{destination} garden quarter · solar hot water", "price": "€154", "score": 91}),
-            with_empty_hotel_media({"id": "demo-stay-5", "name": f"{destination} Low-Waste Suites", "cert": "🌿 EU Ecolabel", "district": f"{destination} transit hub · refill stations", "price": "€136", "score": 88}),
-            with_empty_hotel_media({"id": "demo-stay-6", "name": f"{destination} Riverside Eco Lodge", "cert": "🌿 Biosphere", "district": f"{destination} riverside · local materials", "price": "€126", "score": 87}),
-        ],
-        "eats": [
-            {"id": "demo-eat-1", "emoji": "🥗", "name": f"Verde — {destination} Vegan Kitchen", "district": f"{destination} centre", "tags": ["Vegan", "Local"], "price": "€€", "score": 92, "detail": "Plant-based seasonal menu with local produce.", "restaurantPageUrl": ""},
-            {"id": "demo-eat-2", "emoji": "🌱", "name": f"Horta {destination}", "district": f"{destination} old town", "tags": ["Vegetarian", "Family-run"], "price": "€", "score": 88, "detail": "Casual vegetarian plates and low-waste lunch specials.", "restaurantPageUrl": ""},
-            {"id": "demo-eat-3", "emoji": "🥬", "name": f"Raiz Plant Bistro", "district": f"{destination} creative quarter", "tags": ["Vegan", "Organic"], "price": "€€", "score": 90, "detail": "Small plant-forward bistro near public transport.", "restaurantPageUrl": ""},
-            {"id": "demo-eat-4", "emoji": "🍲", "name": f"Green Spoon {destination}", "district": f"{destination} market area", "tags": ["Vegetarian", "Local sourced"], "price": "€€", "score": 86, "detail": "Vegetarian comfort food with regional ingredients.", "restaurantPageUrl": ""},
-            {"id": "demo-eat-5", "emoji": "🥙", "name": f"Leaf & Grain", "district": f"{destination} riverside", "tags": ["Vegan options", "Low-waste"], "price": "€", "score": 84, "detail": "Quick vegan bowls and reusable-container friendly service.", "restaurantPageUrl": ""},
-            {"id": "demo-eat-6", "emoji": "🍛", "name": f"Jardim Veg", "district": f"{destination} garden district", "tags": ["Vegan", "Hidden gem"], "price": "€€", "score": 89, "detail": "Quiet dinner spot with plant-based local specials.", "restaurantPageUrl": ""},
-        ],
+        "stays": demo_stays(destination),
+        "eats": demo_eats(destination),
     }
     plan["transport"] = sanitize_transport_options(plan.get("transport"), payload)
     normalize_demo_activity_count(plan, destination, payload.activity_count)
@@ -1501,26 +1613,10 @@ def normalize_demo_activity_count(plan: dict[str, Any], destination: str, count:
         plan["activities"] = []
         activities = plan["activities"]
 
-    extra_templates = [
-        ("family-playground-route", "family-friendly park route", "Family", 6, "Easy walk · playground stop · stroller-friendly", 2, 86, "from-moss-200 to-forest-400", False, "family,park"),
-        ("accessible-gallery", "accessible gallery visit", "Accessible", 6, "Step-free venue · indoor break · transit nearby", 2, 85, "from-forest-300 to-moss-500", False, "gallery,museum"),
-        ("budget-viewpoint", "free sunset viewpoint", "Budget", 8, "Free · best after rush hour · bring a reusable bottle", 2, 88, "from-moss-300 to-forest-500", False, "viewpoint,sunset"),
-        ("quiet-neighbourhood", "quiet neighbourhood loop", "Less crowded", 7, "Self-guided · local cafes · avoids peak corridors", 1, 89, "from-forest-400 to-moss-600", False, "quiet,street"),
-        ("transit-day-pass", "public transport discovery loop", "Transit", 7, "Day-pass friendly · low walking strain · flexible stops", 2, 87, "from-moss-200 to-moss-500", False, "tram,city"),
-        ("local-workshop", "local craft workshop", "Local", 5, "Small group · book ahead · supports local makers", 2, 82, "from-forest-300 to-moss-400", False, "workshop,craft"),
-        ("rainy-day-library", "rainy-day library and cafe stop", "Indoor", 4, "Low-cost · quiet · good accessibility backup", 1, 80, "from-moss-200 to-forest-300", False, "library,cafe"),
-        ("farmers-market", "farmers market tasting walk", "Local food", 6, "Morning route · regional produce · low-waste stalls", 3, 83, "from-forest-400 to-moss-500", False, "farmers,market"),
-        ("early-landmark", "early-morning landmark visit", "Off-peak", 6, "Go before crowds · short transit hop · photo stop", 2, 84, "from-moss-300 to-forest-600", False, "landmark,morning"),
-        ("green-rooftop", "green rooftop or urban farm", "Hidden gem", 8, "Biodiversity project · limited slots · book ahead", 1, 90, "from-forest-500 to-moss-400", False, "rooftop,garden"),
-        ("river-ferry", "river ferry or waterfront tram", "Low effort", 5, "Scenic public transport · minimal walking · family-friendly", 2, 81, "from-moss-200 to-forest-400", False, "waterfront,tram"),
-        ("community-event", "community event evening", "Community", 7, "Local calendar pick · low-cost · small venue", 2, 85, "from-forest-300 to-moss-600", False, "community,event"),
-        ("nature-reserve", "nearby nature reserve half-day", "Nature", 9, "Regional train access · low crowd · picnic-friendly", 1, 92, "from-moss-300 to-forest-700", False, "nature,reserve"),
-        ("accessible-old-town", "accessible old-town highlights", "Accessible", 6, "Flatter streets · rest stops · shorter route", 2, 84, "from-forest-300 to-moss-500", False, "old,town"),
-    ]
-
     template_index = 0
     while len(activities) < count:
-        suffix, label, tag, points, detail, crowd, score, gradient, warning, image_query = extra_templates[template_index % len(extra_templates)]
+        template = EXTRA_ACTIVITY_TEMPLATES[template_index % len(EXTRA_ACTIVITY_TEMPLATES)]
+        suffix, label, tag, points, detail, crowd, score, gradient, warning, image_query = template
         activities.append({
             "id": f"demo-{suffix}-{template_index}",
             "name": f"{destination} {label}",

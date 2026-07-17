@@ -1,13 +1,6 @@
-// ============================================================================
-//  EcoTrail — shared UI primitives + Toast/Modal context
-//  These are tiny re-used building blocks: Logo, Toast system, Modal, Switch,
-//  CrowdBar, PointsPill.
-// ============================================================================
-
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { Sparkles, Check, X } from 'lucide-react'
 
-/* ─── Logo ─────────────────────────────────────────────────────────────── */
 export function Logo({ variant = 'dark', size = 'md' }) {
   const box =
     variant === 'dark'
@@ -29,7 +22,6 @@ export function Logo({ variant = 'dark', size = 'md' }) {
   )
 }
 
-/* ─── Switch (toggle) ──────────────────────────────────────────────────── */
 export function Switch({ checked, onChange }) {
   return (
     <button
@@ -47,9 +39,8 @@ export function Switch({ checked, onChange }) {
   )
 }
 
-/* ─── Crowd bar (small bar-chart icon) ─────────────────────────────────── */
 export function CrowdBar({ level = 0 }) {
-  // level 0..5 — number of green bars
+  // Level sets the number of green bars.
   return (
     <span className="crowd-bar">
       {[2, 3, 4, 5, 6].map((h, i) => (
@@ -59,7 +50,6 @@ export function CrowdBar({ level = 0 }) {
   )
 }
 
-/* ─── Toast Context ────────────────────────────────────────────────────── */
 const ToastCtx = createContext(null)
 export function useToast() { return useContext(ToastCtx) }
 
@@ -100,7 +90,6 @@ export function ToastProvider({ children }) {
   )
 }
 
-/* ─── Modal ────────────────────────────────────────────────────────────── */
 export function Modal({ open, onClose, title, children, footer }) {
   useEffect(() => {
     if (!open) return
@@ -133,12 +122,10 @@ export function Modal({ open, onClose, title, children, footer }) {
   )
 }
 
-/* ─── Score / Green dot indicator ──────────────────────────────────────── */
 export function Dot({ color = 'bg-forest-500' }) {
   return <span className={`dot ${color}`} />
 }
 
-/* ─── Tab ──────────────────────────────────────────────────────────────── */
 export function Tabs({ tabs, active, onChange }) {
   return (
     <div className="flex items-center gap-6 px-6 pt-5 border-b border-forest-100 text-sm font-semibold">

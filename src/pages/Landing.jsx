@@ -37,16 +37,15 @@ export default function Landing() {
                   <h1 className="font-display font-extrabold text-5xl md:text-6xl leading-[1.05] mt-5 text-ink">
                       Travel light.<br/>
                       <span className="text-forest-600">Score points.</span><br/>
-                      Save the planet.
+                      Plan better trips.
                   </h1>
                   <p className="mt-5 text-white text-lg max-w-xl">
-                      EcoTrail recommends greener transport, certified hotels, local food and off‑peak places — and
-                      rewards every sustainable choice with points, badges and weekly challenges.
+                      Compare transport, hotels, local food, and quieter places. Earn points and badges for lower carbon choices.
                   </p>
                   <div className="mt-10 grid grid-cols-4 gap-4 max-w-2xl">
                       <Stat big="8%" small="of global CO₂ comes from tourism" cite="Lenzen et al., 2018"/>
                       <Stat big="78%" small="want to travel sustainably" cite="Booking.com, 2023"/>
-                      <Stat big="30%" small="actually do — intention–action gap" cite="Booking.com, 2023"/>
+                      <Stat big="30%" small="turn intent into action" cite="Booking.com, 2023"/>
                       <Stat big="+25–40%" small="behaviour change with gamification" cite="Koivisto & Hamari, 2019"
                             gold/>
                   </div>
@@ -61,7 +60,7 @@ export default function Landing() {
                       text="Transport, accommodation and activities ranked by green‑score, not just by stars."/>
               <Pillar Icon={Sparkles} bg="bg-gold-50" color="text-gold-500"
                       title="Rewards real action"
-                      text="Points, badges and challenges close the intention–action gap — proven by behavioural science."/>
+                      text="Points, badges, and challenges help users act on their travel goals."/>
               <Pillar Icon={Users} bg="bg-moss-50" color="text-moss-700"
                       title="Spreads tourist flow"
                       text="Boosts off‑peak periods and less‑visited destinations to ease overtourism in Venice, Barcelona, Kyoto."/>
@@ -69,7 +68,7 @@ export default function Landing() {
 
           <footer className="border-t border-forest-100 bg-white">
               <div className="max-w-7xl mx-auto px-8 py-5 text-xs text-mute flex items-center justify-between">
-                  <span>© 2026 EcoTrail — Lab Course Projects in Recommender Systems · TUM CM</span>
+                  <span>© 2026 EcoTrail · Lab Course Projects in Recommender Systems · TUM CM</span>
                   <span>Project A2 · Xuerong Xu, Yujie Liu · Supervisor: Ashmi Banerjee</span>
               </div>
           </footer>

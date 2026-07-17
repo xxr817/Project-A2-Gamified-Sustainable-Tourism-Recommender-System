@@ -1,7 +1,3 @@
-// ============================================================================
-//  App.jsx — top-level router + shared state (points counter)
-// ============================================================================
-
 import React, { useState, useCallback, useMemo, createContext, useContext } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastProvider } from './ui.jsx'
@@ -24,13 +20,7 @@ import Profile from './pages/Profile.jsx'
 const UserCtx = createContext(null)
 export const useUser = () => useContext(UserCtx)
 
-// ----------------------------------------------------------------------------
-//  RequireAuth — protects the /app/* routes.
-//  • While the Supabase session is still resolving -> show a loading screen
-//    (otherwise we'd flash the login page for a logged-in user on refresh).
-//  • If resolved and there is NO user -> redirect to /login.
-//  • Otherwise render the protected content.
-// ----------------------------------------------------------------------------
+// Wait for Supabase before checking protected routes.
 function RequireAuth({ children }) {
   const { authUser, loading } = useAuth()
 
@@ -134,7 +124,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* App shell + nested pages — gated behind RequireAuth */}
+          {/* Authenticated app routes */}
           <Route path="/app" element={<RequireAuth><AppShell points={points} /></RequireAuth>}>
             <Route index element={<Dashboard />} />
             <Route path="plan" element={<Plan />} />

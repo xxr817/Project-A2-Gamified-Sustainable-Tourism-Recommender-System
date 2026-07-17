@@ -1,9 +1,4 @@
-// ============================================================================
-//  EcoTrail — shared mock data
-// ----------------------------------------------------------------------------
-//  All numbers and citations come from the Milestone 1 deck. Do not invent
-//  data points: every figure here is traceable to a public source.
-// ============================================================================
+// Static data for the default and demo views.
 
 export const USER = {
   firstName: 'Davide',
@@ -25,9 +20,7 @@ export const USER = {
   joinDate: 'Jan 2026',
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Transport CO₂ — passenger-km, EU average (European Environment Agency, 2023)
-// ────────────────────────────────────────────────────────────────────────────
+// Passenger carbon estimates based on EEA reference values.
 export const CO2_PER_KM = [
   { mode: 'Walking',       emoji: '🚶', grams: 0,    relative: 1,   tone: 'forest' },
   { mode: 'Cycling',       emoji: '🚲', grams: 0,    relative: 1,   tone: 'forest' },
@@ -37,21 +30,19 @@ export const CO2_PER_KM = [
   { mode: 'Short flight',  emoji: '✈️', grams: 255,  relative: 100, tone: 'rose' },
 ]
 
-// ────────────────────────────────────────────────────────────────────────────
-// Recommendations for the demo trip (Munich → Lisbon, 15–22 Jun 2026)
-// ────────────────────────────────────────────────────────────────────────────
+// Demo recommendations for Munich to Lisbon.
 export const RECOMMENDED_TRIPS = [
   {
     id: 'lisbon', name: 'Lisbon, Portugal', tag: 'Off‑peak · June',
     pointsReward: 25, score: 92, nights: 7, fromPrice: '€142 by train',
     crowd: 2, gradient: 'from-moss-300 to-forest-500',
-    detail: 'Lisbon is in shoulder season in June — 30% less crowded than July/Aug. Best reached by train via Paris–Hendaye–Lisbon (32 h). 7 nights, from €142 by train.',
+    detail: 'Lisbon is less busy in June than in July and August. The train route goes through Paris and Hendaye. Travel time is about 32 hours. 7 nights, from €142 by train.',
   },
   {
     id: 'bohinj', name: 'Bohinj, Slovenia', tag: 'Hidden gem',
     pointsReward: 35, score: 96, nights: 5, fromPrice: '€98 by train',
     crowd: 1, gradient: 'from-forest-400 to-forest-700',
-    detail: 'Bohinj Lake (Triglav NP) is a hidden gem — fewer visitors than Bled, 96/100 green‑score. Train via Villach–Jesenice–Bohinjska Bistrica. 5 nights, from €98.',
+    detail: 'Bohinj Lake has fewer visitors than Bled. Its green score is 96/100. The train goes through Villach and Jesenice. 5 nights, from €98.',
   },
   {
     id: 'porto', name: 'Porto, Portugal', tag: 'Slow travel',
@@ -61,9 +52,7 @@ export const RECOMMENDED_TRIPS = [
   },
 ]
 
-// ────────────────────────────────────────────────────────────────────────────
-// Plan a Trip — Transport options for Munich → Lisbon
-// ────────────────────────────────────────────────────────────────────────────
+// Demo transport options for Munich to Lisbon.
 export const TRANSPORT_OPTIONS = [
   {
     id: 'train', emoji: '🚆', title: 'Train · ICE + TGV + Sud Express',
@@ -86,7 +75,7 @@ export const TRANSPORT_OPTIONS = [
     detail: 'Fastest option · but emits 4× more CO₂ than train.',
     duration: '3 h 5 m', price: '€89', co2: '312 kg', score: '22 / 100',
     tone: 'rose',
-    warning: 'Picking this flight will cost you ~234 kg extra CO₂ — equivalent to 2 months of an average German household\'s electricity use.',
+    warning: 'This flight adds about 234 kg of CO₂. That is close to two months of electricity use for an average German household.',
   },
 ]
 
@@ -102,7 +91,7 @@ export const STAY_OPTIONS = [
 
 // Eat
 export const EAT_OPTIONS = [
-  { id: 'e1', emoji: '🥗', name: 'Ao 26 — Vegan Food Project', district: 'Chiado', tags: ['Vegan', 'Traditional'], price: '€€', score: 95, detail: 'Plant-based takes on Portuguese classics near Chiado.', restaurantPageUrl: 'https://www.ao26.pt/' },
+  { id: 'e1', emoji: '🥗', name: 'Ao 26 Vegan Food Project', district: 'Chiado', tags: ['Vegan', 'Traditional'], price: '€€', score: 95, detail: 'Plant-based takes on Portuguese classics near Chiado.', restaurantPageUrl: 'https://www.ao26.pt/' },
   { id: 'e2', emoji: '🌱', name: 'Organi Chiado', district: 'Chiado', tags: ['Vegan', 'Sustainable'], price: '€€', score: 92, detail: 'Organic vegan bowls, mains and desserts in the centre.', restaurantPageUrl: 'https://www.organi.pt/' },
   { id: 'e3', emoji: '🥬', name: "My Mother's Daughters", district: 'Sao Bento', tags: ['Vegan', 'Organic'], price: '€€', score: 91, detail: 'Creative vegan brunch and seasonal plates.', restaurantPageUrl: 'https://www.mymothersdaughters.pt/' },
   { id: 'e4', emoji: '🍲', name: 'The Green Affair', district: 'Saldanha', tags: ['Vegan', 'Modern'], price: '€€', score: 88, detail: 'Modern vegan dining with burgers, bowls and Portuguese touches.', restaurantPageUrl: 'https://thegreenaffair.pt/' },

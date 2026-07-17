@@ -18,7 +18,7 @@ const INTERESTS = [
 const TRANSPORT_PREFS = [
   'Prefer train & bus over flights',
   'Walking + cycling whenever possible',
-  'Mix — show me the greenest realistic option',
+  'Mix. Show me the greenest realistic option',
 ]
 
 const PACE_PREFS = [
@@ -37,7 +37,7 @@ export default function Onboarding() {
   const [pace, setPace] = useState(PACE_PREFS[1])
   const [saving, setSaving] = useState(false)
 
-  // Name shown in the welcome toast — real user, never hardcoded.
+  // Use the saved profile name in the welcome message.
   const name =
     profile?.first_name ||
     authUser?.user_metadata?.full_name ||
@@ -50,7 +50,7 @@ export default function Onboarding() {
 
     // Persist preferences to the user's profile. This write is DEFENSIVE:
     // if the `preferences` column hasn't been added yet (see DEPLOY_GUIDE.md),
-    // or the user somehow isn't authenticated, we log it and continue —
+    // If the profile is missing, log the error and continue.
     // onboarding must never trap the user on this screen.
     if (authUser) {
       try {

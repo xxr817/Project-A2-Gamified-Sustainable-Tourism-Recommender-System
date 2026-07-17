@@ -1,25 +1,9 @@
-// ============================================================================
-//  achievements.js — badge auto-unlock + challenge progress/completion engine
-// ----------------------------------------------------------------------------
-//  EcoTrail tracks three kinds of logged action in `user_activity`:
-//    activity_type = 'transport' | 'stay' | 'activity'
-//  plus profile-level stats (off_peak_trips, co2_saved_month_kg, trips_count).
-//
-//  This module turns those into:
-//    • badge progress + auto-unlock   -> writes public.user_badges
-//    • challenge progress + completion -> writes public.user_challenges + awards reward
-//
-//  Badges / challenges whose real criteria need data we DON'T have
-//  (Strava km, written reviews, nights-per-stay) are intentionally left out of
-//  the auto-engine. Challenges in that bucket are completable via a manual
-//  "claim" (completeChallengeManually) so a demo can still finish them honestly.
-// ============================================================================
+// Updates badge and challenge progress from saved user activity.
 
 import { supabase } from './supabase'
 import { getLevelProgress } from './gamification.js'
 
-// --- Badges we can evaluate from tracked data --------------------------------
-// metric = a key returned by computeStats(); target = value that means 100%.
+// Each metric comes from computeStats. The target is the unlock value.
 const BADGE_DEFS = [
   { id: 'low-carbon-pioneer', metric: 'ecoTransportPoints', target: 100, unit: 'pts' },
   { id: 'off-peak-hero',      metric: 'offPeakTrips',       target: 3,   unit: 'trips' },
@@ -28,28 +12,25 @@ const BADGE_DEFS = [
   { id: 'green-sleeper',      metric: 'stayCount',          target: 5,   unit: 'stays' },
   { id: 'carbon-cutter',      metric: 'co2Month',           target: 100, unit: 'kg' },
 ]
-// Badge ids the engine can actually award. The Badges page shows ONLY these, so
-// every visible badge is earnable. The remaining seed badges (Strava km, reviews,
-// nights-per-stay, top-50 lists) stay in the DB as documented future work.
+// Only tracked badges are shown in the app.
 export const EARNABLE_BADGE_IDS = BADGE_DEFS.map((d) => d.id)
 
-// --- Challenges we can auto-track --------------------------------------------
-// type = which logged action counts; target = how many (counted since joined_at).
+// Challenge actions are counted after the join date.
 const CHALLENGE_DEFS = {
-  // Added 2026-07-03 — 4 more auto-tracked challenges (one per Plan tab).
   'c7':  { type: 'activity',  target: 2 },
   'c9':  { type: 'transport', target: 1 },
   'c10': { type: 'stay',      target: 1 },
   'c2':                  { type: 'transport', target: 1 },
   'c3':                  { type: 'transport', target: 1 },
   'c6':                  { type: 'stay',      target: 1 },
+  'c11':                 { kind: 'inactivity', months: 6 },
 }
 export const MANUAL_CHALLENGES = new Set()
 
-// ---------------------------------------------------------------------------
+const TRAVEL_ACTIVITY_TYPES = new Set(['transport', 'stay', 'food', 'activity'])
 
 async function computeStats(authUser, profile) {
-  // Fetch logged actions + fresh profile stats (don't trust possibly-stale context).
+  // Read fresh activity and profile values from Supabase.
   const [{ data: acts }, { data: prof }] = await Promise.all([
     supabase
       .from('user_activity')
@@ -80,6 +61,31 @@ function countSince(acts, type, since) {
   return acts.filter((r) => r.activity_type === type && new Date(r.created_at).getTime() >= from).length
 }
 
+function addMonths(value, months) {
+  const date = new Date(value)
+  const day = date.getDate()
+  date.setDate(1)
+  date.setMonth(date.getMonth() + months)
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  date.setDate(Math.min(day, lastDay))
+  return date
+}
+
+export function inactivityProgress(acts, joinedAt, months = 6, now = new Date()) {
+  const joined = new Date(joinedAt)
+  const travelActions = acts
+    .filter((row) => TRAVEL_ACTIVITY_TYPES.has(row.activity_type))
+    .map((row) => new Date(row.created_at))
+    .filter((date) => !Number.isNaN(date.getTime()) && date >= joined && date <= now)
+  const quietSince = travelActions.reduce((latest, date) => date > latest ? date : latest, joined)
+  const completesAt = addMonths(quietSince, months)
+  const totalMs = Math.max(1, completesAt.getTime() - quietSince.getTime())
+  const quietMs = Math.max(0, now.getTime() - quietSince.getTime())
+  const count = Math.min(Math.floor(quietMs / 86400000), Math.ceil(totalMs / 86400000))
+  const target = Math.ceil(totalMs / 86400000)
+  return { count, target, complete: now >= completesAt, quietSince: quietSince.toISOString() }
+}
+
 function pct(value, target) {
   return Math.max(0, Math.min(100, Math.round((value / target) * 100)))
 }
@@ -97,13 +103,7 @@ async function upsertBadge(authUser, badgeId, progress, progressText, existing) 
   )
 }
 
-/**
- * Recompute all badge progress + challenge progress for the user, unlocking and
- * awarding where thresholds are crossed. Safe to call repeatedly (idempotent:
- * a challenge is only completed/rewarded once). Never throws to the UI.
- *
- * @returns {{ newBadges: string[], completedChallenges: {id:string,name:string,reward:number}[] }}
- */
+// Recalculate badge and challenge progress.
 export async function syncAchievements(authUser, profile) {
   const result = { newBadges: [], completedChallenges: [] }
   if (!authUser) return result
@@ -118,8 +118,7 @@ export async function syncAchievements(authUser, profile) {
     const existing = {}
     ;(ubRows || []).forEach((b) => { existing[b.badge_id] = b })
 
-    // ---- Badges --------------------------------------------------------------
-    // Monotonic: progress only ever goes UP; an earned/demo badge is never re-locked.
+    // Badge progress does not move backwards.
     for (const def of BADGE_DEFS) {
       const value = stats[def.metric] || 0
       const progress = pct(value, def.target)
@@ -130,7 +129,6 @@ export async function syncAchievements(authUser, profile) {
       if (progress >= 100 && prev < 100) result.newBadges.push(def.id)
     }
 
-    // ---- Challenges ----------------------------------------------------------
     const { data: ucRows } = await supabase
       .from('user_challenges')
       .select('challenge_id, joined_at, is_active, completed_at')
@@ -149,13 +147,17 @@ export async function syncAchievements(authUser, profile) {
       let awarded = 0
       for (const row of active) {
         const def = CHALLENGE_DEFS[row.challenge_id]
-        const value = countSince(stats.acts, def.type, row.joined_at)
-        const progress = pct(value, def.target)
+        const inactivity = def.kind === 'inactivity'
+          ? inactivityProgress(stats.acts, row.joined_at, def.months)
+          : null
+        const value = inactivity?.count ?? countSince(stats.acts, def.type, row.joined_at)
+        const target = inactivity?.target ?? def.target
+        const progress = pct(value, target)
 
-        if (progress >= 100) {
+        if (inactivity?.complete || progress >= 100) {
           await supabase
             .from('user_challenges')
-            .update({ completed_at: new Date().toISOString(), is_active: false, progress: { count: value, target: def.target } })
+            .update({ completed_at: new Date().toISOString(), is_active: false, progress: { count: value, target, unit: inactivity ? 'days' : undefined } })
             .eq('user_id', authUser.id)
             .eq('challenge_id', row.challenge_id)
           const reward = chMap[row.challenge_id]?.reward || 0
@@ -168,7 +170,7 @@ export async function syncAchievements(authUser, profile) {
         } else {
           await supabase
             .from('user_challenges')
-            .update({ progress: { count: value, target: def.target } })
+            .update({ progress: { count: value, target, unit: inactivity ? 'days' : undefined, quiet_since: inactivity?.quietSince } })
             .eq('user_id', authUser.id)
             .eq('challenge_id', row.challenge_id)
         }

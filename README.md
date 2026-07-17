@@ -1,94 +1,103 @@
-# EcoTrail — Gamified Sustainable Tourism Recommender
+# EcoTrail
 
-**Project A2 · Lab Course Projects in Recommender Systems · TUM CM · Summer Semester 2026**
-Team: Xuerong Xu, Yujie Liu · Supervisor: Ashmi Banerjee
+EcoTrail is a trip planning app for lower carbon travel. It compares transport options and suggests activities, hotels, and vegetarian restaurants. Users can save choices, earn points, complete challenges, and view their trip history.
 
-🔗 **Live demo:** https://eco-trail-react-1.vercel.app
+This project was built for Project A2 in the TUM course "Lab Course Projects in Recommender Systems" during Summer Semester 2026.
 
-> A gamified recommender that nudges travellers toward lower-carbon choices — points, levels, badges and weekly challenges layered on top of AI-assisted, sustainability-first trip planning.
+Team: Xuerong Xu and Yujie Liu
 
----
+Supervisor: Ashmi Banerjee
 
-## What it does
+Live demo: https://eco-trail-react-1.vercel.app
 
-- **AI trip planner** — enter a route and dates; the app returns sustainability-ranked **transport, stays and activities** with plausible CO₂ estimates, generated live by an LLM.
-- **Gamification loop** — earn points for green choices → level up → unlock **badges**; join **weekly challenges** with progress tracking and rewards. All persisted per user.
-- **Accounts** — email/password + Google sign-in (Supabase Auth), with a profile and a weekly **leaderboard**.
+## Main features
 
----
+- Plan a trip by entering two cities and travel dates.
+- Compare transport options by carbon impact.
+- View activities, hotels, and vegetarian restaurants.
+- Earn points and badges for selected options.
+- Join weekly, monthly, trip, and long term challenges.
+- Sign in with email, password, or Google.
+- View saved trips and the weekly leaderboard.
 
-## Architecture
+## Project structure
 
-```
-Browser
-  │
-  ├──► Frontend (React + Vite)        ──►  Vercel        https://eco-trail-react-1.vercel.app
-  │        │
-  │        ├─ data, auth, gamification ──► Supabase (Postgres + Auth + RLS)
-  │        │
-  │        └─ AI trip planning  /api  ──► Backend (FastAPI)  ──► Render  ──► OpenAI
-```
+The frontend uses React, Vite, and Tailwind CSS. It is deployed on Vercel.
 
-- **Frontend** — React 18 + Vite + Tailwind, deployed on **Vercel**.
-- **Backend** — **FastAPI** (a thin service that holds the OpenAI key and calls the model), deployed on **Render**. Talks to the frontend via `VITE_API_BASE_URL`; CORS-restricted to the deployed frontend.
-- **Database/Auth** — **Supabase** (PostgreSQL, Row-Level Security, Supabase Auth).
-- **AI** — OpenAI (`gpt-4.1-mini`) with structured JSON output. Without an API key the backend falls back to a built-in demo plan, so the app still runs.
+The backend uses FastAPI. It sends trip requests to OpenAI and checks image links before returning results. It is deployed on Render.
 
----
+Supabase provides authentication and stores profiles, trips, activity history, badges, challenges, and leaderboard data.
 
-## Where the data comes from (honest note)
+## Trip data
 
-- **Real, cited constant:** CO₂-per-passenger-km figures are from the **European Environment Agency (EEA), 2023** (e.g. train 35 g, car 170 g, short flight 255 g).
-- **AI-generated at request time:** the per-route trip recommendations (transport / stays / activities) are produced by the LLM, structured by a fixed JSON schema — not retrieved from live travel APIs.
-- **Hand-curated reference/seed data:** destinations, badges, challenges and demo content (Supabase seed + `src/data.js`).
-- **Planned future integrations (not yet wired):** live Booking.com / OpenStreetMap / Climatiq / GreenKey feeds, and the Strava/review-based badges (currently hidden in the UI).
+Live trip suggestions are generated with OpenAI structured output and web search. They do not come from a booking service. The backend checks and cleans the result before it reaches the frontend.
 
----
+The project also contains static demo data. This data is used when the OpenAI key is missing or a live request fails. Demo hotels and restaurants are examples. They are not booking records.
+
+Carbon values are estimates. The reference values in `src/data.js` are based on European Environment Agency data.
 
 ## Run locally
 
-Requires **Node 18+** and **Python 3**.
+Requirements:
 
-**One-time setup** (each teammate, in their own clone):
+- Node.js 18 or newer
+- Python 3
+
+Install the frontend:
+
 ```bash
-cd <repo>
-npm install                                   # frontend deps (node_modules)
-
-python3 -m venv .venv                          # backend virtual-env — must be named .venv
-.venv/bin/pip install -r requirements.txt      # backend deps (FastAPI, uvicorn, certifi)
-
-cp backend/.env.example backend/.env           # create your own env file
-# For real AI results, add your own key in backend/.env:  OPENAI_API_KEY=sk-...
-# Leave it blank to run in demo mode — no key needed, the app still works.
+npm install
 ```
 
-**Run** — two terminals:
+Set up the backend:
+
 ```bash
-npm run dev        # terminal 1 · frontend · http://localhost:5173
-npm run dev:api    # terminal 2 · backend  · http://127.0.0.1:8000
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp backend/.env.example backend/.env
 ```
 
-- `npm run dev:api` runs the backend from `.venv` and auto-loads `backend/.env` (via `--env-file`).
-- **Without an `OPENAI_API_KEY` the backend returns a built-in demo plan, so the app still runs** (the demo data is fixed, not route-specific).
-- The frontend proxies `/api` → `localhost:8000` in dev; production reads `VITE_API_BASE_URL`.
-- `backend/.env`, `.venv/` and `node_modules/` are git-ignored — each teammate creates their own.
+Add an OpenAI key to `backend/.env` for live results:
 
----
+```env
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+Start the frontend and backend in separate terminals:
+
+```bash
+npm run dev
+npm run dev:api
+```
+
+Frontend: http://localhost:5173
+
+Backend: http://127.0.0.1:8000
+
+The frontend sends local `/api` requests to the FastAPI backend through the Vite proxy.
+
+## Supabase setup
+
+Create a Supabase project and run these files in the SQL Editor:
+
+1. `supabase_schema.sql`
+2. `supabase_seed.sql`
+3. `supabase_migration_milestone3.sql`
+4. `supabase_migration_new_challenges.sql`
+5. `supabase_migration_challenges_cleanup.sql`
+6. `supabase_migration_six_month_pause.sql`
+
+The SQL files create the tables, policies, seed data, and current challenges.
 
 ## Deployment
 
-- **Frontend → Vercel** (Vite preset). Set env `VITE_API_BASE_URL` to the backend URL.
-- **Backend → Render** (`render.yaml` included). Set env `OPENAI_API_KEY` and `ALLOWED_ORIGINS` (the frontend URL).
-- **Database → Supabase.** Apply `supabase_schema.sql` + `supabase_seed.sql`, then `supabase_migration_milestone3.sql`.
+Deploy the frontend with Vercel. Set `VITE_API_BASE_URL` to the Render backend URL.
 
-See `DEPLOY_GUIDE.md` for step-by-step instructions.
+Deploy the backend with Render. Set `OPENAI_API_KEY` and `ALLOWED_ORIGINS` in the Render environment.
 
----
+See `DEPLOY_GUIDE.md` for the full deployment steps.
 
-## Tech stack
+## Technology
 
-React 18 · Vite · Tailwind CSS · React Router · FastAPI · OpenAI · Supabase (Postgres/Auth) · Vercel · Render
-
----
-
-*GenAI disclosure: this project uses OpenAI both as a product feature (the trip planner) and as a development aid. Details are documented in the final report.*
+React, Vite, Tailwind CSS, React Router, FastAPI, OpenAI, Supabase, Vercel, and Render.

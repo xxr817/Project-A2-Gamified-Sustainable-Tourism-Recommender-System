@@ -103,7 +103,7 @@ insert into public.challenges (id, emoji, name, detail, reward, duration) values
   ('c2', '🚆', 'Train Over Plane',     'Book 1 train trip ≥500 km instead of a flight this month.',     50, 'monthly'),
   ('c3', '🏔️', 'Off-Peak Explorer',    'Travel to a low-season destination (Mar / Oct / Nov).',          40, 'monthly'),
   ('c6', '🛏️', 'Stay Green',          'Book 1 GreenKey / EU-Ecolabel hotel this month.',                20, 'monthly'),
-  ('c11', '⏸️', 'Six-Month Travel Pause', 'Go 6 months without selecting transport, stays, food, or activities. Any new selection restarts the timer.', 60, 'six months');
+  ('c11', '⏸️', 'Six-Month Travel Pause', 'Go 6 months without selecting transport, stays, food, or activities. Any new selection restarts the timer.', 300, 'six months');
 
 
 ------------------------------------------------------------

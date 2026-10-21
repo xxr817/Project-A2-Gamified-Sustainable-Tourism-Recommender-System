@@ -96,8 +96,6 @@ Deploy the frontend with Vercel. Set `VITE_API_BASE_URL` to the Render backend U
 
 Deploy the backend with Render. Set `OPENAI_API_KEY` and `ALLOWED_ORIGINS` in the Render environment.
 
-See `DEPLOY_GUIDE.md` for the full deployment steps.
-
 ## Technology
 
 React, Vite, Tailwind CSS, React Router, FastAPI, OpenAI, Supabase, Vercel, and Render.
